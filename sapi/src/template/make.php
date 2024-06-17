@@ -328,7 +328,8 @@ make_archive() {
     cd <?= BUILD_PHP_INSTALL_PREFIX ?>/bin
     cp -f ${__PROJECT_DIR__}/bin/LICENSE .
 
-    PHP_VERSION=$(./php -r "echo PHP_VERSION;")
+
+    PHP_VERSION=$(./php-fpm  -v | head -n 1 | awk '{print $2}')
     PHP_CLI_FILE_DEBUG=php-fpm-v${PHP_VERSION}-<?=$this->getOsType()?>-<?=$this->getSystemArch()?>-debug.tar.xz
     tar -cJvf ${PHP_CLI_FILE_DEBUG} php-fpm LICENSE
 
