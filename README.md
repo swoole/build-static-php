@@ -1,10 +1,10 @@
-# build static php-cli runtime
+# build static php-fpm runtime
 
-构建静态 原生 php-cli 运行时
+构建静态 原生 php-fpm 运行时
 
 ## 说明
 
-`php-cli` 是一个 `PHP`的 运行时 ，默认包含 swoole 扩展
+`php-fpm` 是一个 `PHP`的 运行时 ，默认包含 swoole 扩展
 
 > 本项目 派生于 [swoole-cli](https://github.com/swoole/swoole-cli/)
 
@@ -22,11 +22,11 @@
 
 > 可编译包含 swow 扩展
 
-## 下载`php-cli`发行版
+## 下载`php-fpm`发行版
 
 - [https://github.com/swoole/build-static-php/releases](https://github.com/swoole/build-static-php/releases)
 
-## `php-cli`构建文档
+## `php-fpm`构建文档
 
 - [linux 版构建文档](docs/linux.md)
 - [macOS 版构建文档](docs/macOS.md)

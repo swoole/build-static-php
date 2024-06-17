@@ -27,7 +27,7 @@ OPTIONS="--disable-all \
 --enable-shared=no \
 --enable-static=yes \
 --without-valgrind \
---enable-cli  \
+--enable-fpm \
 --disable-phpdbg \
 <?php foreach ($this->extensionList as $item) : ?>
     <?=$item->options?> \
@@ -306,21 +306,21 @@ make_build() {
     <?php endif ;?>
 
 <?php if ($this->isMacos()) : ?>
-    xattr -cr <?= $this->phpSrcDir  ?>/sapi/cli/php
-    otool -L <?= $this->phpSrcDir  ?>/sapi/cli/php
+    xattr -cr <?= $this->phpSrcDir  ?>/sapi/fpm/php-fpm
+    otool -L <?= $this->phpSrcDir  ?>/sapi/fpm/php-fpm
 <?php else : ?>
-    file <?= $this->phpSrcDir  ?>/sapi/cli/php
-    readelf -h <?= $this->phpSrcDir  ?>/sapi/cli/php
+    file <?= $this->phpSrcDir  ?>/sapi/fpm/php-fpm
+    readelf -h <?= $this->phpSrcDir  ?>/sapi/fpm/php-fpm
 <?php endif; ?>
     # make install
     mkdir -p <?= BUILD_PHP_INSTALL_PREFIX ?>/bin/
-    cp -f <?= $this->phpSrcDir  ?>/sapi/cli/php <?= BUILD_PHP_INSTALL_PREFIX ?>/bin/
-    echo "<?= $this->phpSrcDir  ?>/sapi/cli/php -v"
-    <?= $this->phpSrcDir  ?>/sapi/cli/php -v
-    echo "<?= BUILD_PHP_INSTALL_PREFIX ?>/bin/php -v"
-    <?= BUILD_PHP_INSTALL_PREFIX ?>/bin/php -v
+    cp -f <?= $this->phpSrcDir  ?>/sapi/fpm/php-fpm <?= BUILD_PHP_INSTALL_PREFIX ?>/bin/
+    echo "<?= $this->phpSrcDir  ?>/sapi/fpm/php-fpm -v"
+    <?= $this->phpSrcDir  ?>/sapi/fpm/php-fpm -v
+    echo "<?= BUILD_PHP_INSTALL_PREFIX ?>/bin/php-fpm -v"
+    <?= BUILD_PHP_INSTALL_PREFIX ?>/bin/php-fpm -v
 
-    # elfedit --output-osabi linux sapi/cli/php
+    # elfedit --output-osabi linux /sapi/fpm/php-fpm
 }
 
 make_archive() {
@@ -329,18 +329,18 @@ make_archive() {
     cp -f ${__PROJECT_DIR__}/bin/LICENSE .
 
     PHP_VERSION=$(./php -r "echo PHP_VERSION;")
-    PHP_CLI_FILE_DEBUG=php-cli-v${PHP_VERSION}-<?=$this->getOsType()?>-<?=$this->getSystemArch()?>-debug.tar.xz
-    tar -cJvf ${PHP_CLI_FILE_DEBUG} php LICENSE
+    PHP_CLI_FILE_DEBUG=php-fpm-v${PHP_VERSION}-<?=$this->getOsType()?>-<?=$this->getSystemArch()?>-debug.tar.xz
+    tar -cJvf ${PHP_CLI_FILE_DEBUG} php-fpm LICENSE
 
 
     mkdir -p <?= BUILD_PHP_INSTALL_PREFIX ?>/bin/dist
-    cp -f php           dist/
+    cp -f php-fpm       dist/
     cp -f LICENSE       dist/
 
     cd <?= BUILD_PHP_INSTALL_PREFIX ?>/bin/dist
-    strip php
-    PHP_CLI_FILE=php-cli-v${PHP_VERSION}-<?=$this->getOsType()?>-<?=$this->getSystemArch()?>.tar.xz
-    tar -cJvf ${PHP_CLI_FILE} php LICENSE
+    strip php-fpm
+    PHP_CLI_FILE=php-fpm-v${PHP_VERSION}-<?=$this->getOsType()?>-<?=$this->getSystemArch()?>.tar.xz
+    tar -cJvf ${PHP_CLI_FILE} php-fpm LICENSE
 
     mv <?= BUILD_PHP_INSTALL_PREFIX ?>/bin/dist/${PHP_CLI_FILE}  ${__PROJECT_DIR__}/
     mv <?= BUILD_PHP_INSTALL_PREFIX ?>/bin/${PHP_CLI_FILE_DEBUG} ${__PROJECT_DIR__}/

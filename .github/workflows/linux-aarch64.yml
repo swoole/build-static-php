@@ -13,7 +13,7 @@ jobs:
       matrix:
         php-version:
           - "8.2.13"
-          - "8.1.27"
+        #  - "8.1.27"
         #  - "8.3.3"
     steps:
       - uses: actions/checkout@v4
@@ -159,19 +159,13 @@ jobs:
           image: swoole-cli-builder:latest
           options: -v ${{ github.workspace }}:/work -w /work
           run: |
-            ./thirdparty/php-src/sapi/cli/php -v
-            ./thirdparty/php-src/sapi/cli/php -m
-            ./thirdparty/php-src/sapi/cli/php --ri gd
-            ./thirdparty/php-src/sapi/cli/php --ri swoole
-            ./thirdparty/php-src/sapi/cli/php --ri pgsql
-            file ./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/php
-            readelf -h ./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/php
-            APP_VERSION=$(./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/php  -v | head -n 1 | awk '{print $2}')
+            ./thirdparty/php-src/sapi/fpm/php-fpm -v
+            ./thirdparty/php-src/sapi/fpm/php-fpm -m
+            file ./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/php-fpm
+            readelf -h ./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/php-fpm
+            APP_VERSION=$(./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/php-fpm -v | head -n 1 | awk '{print $2}')
             echo ${APP_VERSION}
             echo ${APP_VERSION}  > APP_VERSION
-            ./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/php -r "echo PHP_VERSION;"
-            ./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/php ./vendor/bin/phpunit ./sapi/src/UnitTest/MainTest.php  --list-tests
-            ./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/php ./vendor/bin/phpunit ./sapi/src/UnitTest/MainTest.php
 
       - name: get app version
         run: |
@@ -182,21 +176,21 @@ jobs:
       - name: production artifacts debug
         uses: actions/upload-artifact@v4
         with:
-          name: php-cli-v${{ env.APP_VERSION }}-linux-arm64-debug
+          name: php-fpm-v${{ env.APP_VERSION }}-linux-arm64-debug
           retention-days: 90
-          path: ./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/php
+          path: ./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/php-fpm
 
       - name: production artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: php-cli-v${{ env.APP_VERSION }}-linux-arm64
+          name: php-fpm-v${{ env.APP_VERSION }}-linux-arm64
           retention-days: 90
-          path: ./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/dist/php
+          path: ./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/dist/php-fpm
 
       - name: gh release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            php-cli-v${{ env.APP_VERSION }}-linux-arm64.tar.xz
-            php-cli-v${{ env.APP_VERSION }}-linux-arm64-debug.tar.xz
+            php-fpm-v${{ env.APP_VERSION }}-linux-arm64.tar.xz
+            php-fpm-v${{ env.APP_VERSION }}-linux-arm64-debug.tar.xz

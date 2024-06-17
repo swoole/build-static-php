@@ -63,7 +63,9 @@ test -f Makefile && make clean
   --enable-redis \
   --with-imagick \
   --with-yaml \
-  --with-readline
+  --with-readline \
+  --enable-cli \
+  --enable-fpm
 
 # --with-zip   #  cygwin libzip-devel 版本库暂不支持函数 zip_encryption_method_supported （2020年新增函数)
 # --with-pdo-pgsql \
