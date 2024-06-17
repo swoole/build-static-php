@@ -4,11 +4,11 @@
 
 ## 说明
 
-`php-fpm` 是一个 `PHP`的 运行时 ，默认包含 swoole 扩展
+`php-fpm` 是一个 FastCGI进程管理器
 
 > 本项目 派生于 [swoole-cli](https://github.com/swoole/swoole-cli/)
 
-> 代码与 swoole-cli 项目的 build_native_php 分支的代码 保持一致
+> 代码与 swoole-cli 项目的 build_native_php 分支的代码 大致保持一致
 
 > 构建流程 与 swoole-cli 构建流程一致
 
@@ -32,19 +32,15 @@
 - [macOS 版构建文档](docs/macOS.md)
 - [windows Cygwin 版构建文档](docs/Cygwin.md)
 - [windows WSL 版构建文档](docs/wsl.md)
-- [php-cli 构建选项文档](docs/options.md)
-- [php-cli 搭建依赖库镜像服务](sapi/download-box/README.md)
+- [php-fpm 构建选项文档](docs/options.md)
+- [php-fpm 搭建依赖库镜像服务](sapi/download-box/README.md)
 - [quickstart](sapi/quickstart/README.md)
 
 ## Clone
 
 ```shell
 
-git clone -b main https://github.com/swoole/build-static-php.git
-
-# 或者
-
-git clone --recursive -b build_native_php  https://github.com/swoole/swoole-cli.git
+git clone -b php-fpm https://github.com/swoole/build-static-php.git
 
 ```
 
@@ -158,13 +154,13 @@ bash make-install-deps.sh
 ./make.sh config
 ```
 
-## 构建 php-cli
+## 构建 php-fpm
 
 ```shell
 ./make.sh build
 ```
 
-> 编译成功后会生成`bin/php-{version}/bin/php`
+> 编译成功后会生成`bin/php-{version}/bin/php-fpm`
 
 ## 打包
 
@@ -172,14 +168,14 @@ bash make-install-deps.sh
 ./make.sh archive
 ```
 
-> 打包成功后会生成 `php-cli-{version}-{os}-{arch}.tar.xz`
-> 压缩包，包含 `php` 可执行文件、`LICENSE` 授权协议文件。
+> 打包成功后会生成 `php-fpm-{version}-{os}-{arch}.tar.xz`
+> 压缩包，包含 `php-fpm` 可执行文件、`LICENSE` 授权协议文件。
 
 ## 授权协议
 
-* `php-cli` 使用了多个其他开源项目，请认真阅读自动生成的 `bin/LICENSE`
+* `php-fpm` 使用了多个其他开源项目，请认真阅读自动生成的 `bin/LICENSE`
   文件中版权协议，遵守对应开源项目的 `LICENSE`
-* `php-cli`
+* `php-fpm`
   本身的软件源代码、文档等内容以 `Apache 2.0 LICENSE`+`SWOOLE-CLI LICENSE`
   作为双重授权协议，用户需要同时遵守 `Apache 2.0 LICENSE`和`SWOOLE-CLI LICENSE`
   所规定的条款
