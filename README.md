@@ -1,6 +1,6 @@
-# build static php-fpm runtime
+# build static php-fpm FastCGI
 
-构建静态 原生 php-fpm 运行时
+构建静态 原生 php-fpm FastCGI
 
 ## 说明
 
