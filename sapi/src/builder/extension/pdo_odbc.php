@@ -10,7 +10,7 @@ return function (Preprocessor $p) {
             ->withHomePage('https://www.php.net/manual/zh/ref.pdo-odbc.php')
             ->withLicense('https://github.com/php/php-src/blob/master/LICENSE', Extension::LICENSE_PHP)
             ->withOptions('--with-pdo-odbc=unixODBC,' . $unixODBC_prefix)
-            ->withDependentLibraries('unixODBC')
+            ->withDependentLibraries('unix_odbc')
             ->withDependentExtensions('pdo')
     );
 };
