@@ -1,10 +1,10 @@
-# build static php-fpm FastCGI
+# build static FastCGI php-fpm
 
-构建静态 原生 php-fpm FastCGI
+构建静态 原生 FastCGI php-fpm
 
 ## 说明
 
-`php-fpm` 是一个 FastCGI进程管理器
+`php-fpm` 是一个 FastCGI 进程管理器
 
 > 本项目 派生于 [swoole-cli](https://github.com/swoole/swoole-cli/)
 
@@ -12,13 +12,11 @@
 
 > 构建流程 与 swoole-cli 构建流程一致
 
-> 项目继承 `swoole_cli` 项目的 `main` 分支、`experiment` 分支的构建功能
+> 项目继承 `swoole_cli` 项目的 `build_native_php` 分支的构建功能
 
 > 未对 PHP 源码 执行 裁剪、优化、添加新功能等操作
 
 > 可指定 PHP 版本 构建原生 PHP 版本
-
-> 可指定 C 编译器 为 musl-gcc、x86_64-linux-musl-gcc 、clang
 
 > 可编译包含 swow 扩展
 
