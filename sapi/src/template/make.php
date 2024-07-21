@@ -26,6 +26,7 @@ OPTIONS="--disable-all \
 --disable-cgi  \
 --enable-shared=no \
 --enable-static=yes \
+--enable-zts \
 --without-valgrind \
 --enable-cli  \
 --disable-phpdbg \
@@ -364,7 +365,7 @@ make_archive() {
     cp -f ${__PROJECT_DIR__}/bin/LICENSE .
 
     PHP_VERSION=$(./php -r "echo PHP_VERSION;")
-    PHP_CLI_FILE_DEBUG=php-cli-v${PHP_VERSION}-<?=$this->getOsType()?>-<?=$this->getSystemArch()?>-debug.tar.xz
+    PHP_CLI_FILE_DEBUG=php-cli-v${PHP_VERSION}-zts-<?=$this->getOsType()?>-<?=$this->getSystemArch()?>-debug.tar.xz
     tar -cJvf ${PHP_CLI_FILE_DEBUG} php LICENSE
 
 
@@ -374,7 +375,7 @@ make_archive() {
 
     cd <?= BUILD_PHP_INSTALL_PREFIX ?>/bin/dist
     strip php
-    PHP_CLI_FILE=php-cli-v${PHP_VERSION}-<?=$this->getOsType()?>-<?=$this->getSystemArch()?>.tar.xz
+    PHP_CLI_FILE=php-cli-v${PHP_VERSION}-zts-<?=$this->getOsType()?>-<?=$this->getSystemArch()?>.tar.xz
     tar -cJvf ${PHP_CLI_FILE} php LICENSE
 
     mv <?= BUILD_PHP_INSTALL_PREFIX ?>/bin/dist/${PHP_CLI_FILE}  ${__PROJECT_DIR__}/

@@ -25,6 +25,7 @@ cd ${__PROJECT__}/php-src/
 ./buildconf --force
 test -f Makefile && make clean
 ./configure --prefix=/usr --disable-all \
+    --enable-zts \
     --enable-opcache \
     --disable-fiber-asm \
     --without-pcre-jit \

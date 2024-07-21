@@ -212,14 +212,14 @@ jobs:
       - name: production artifacts debug
         uses: actions/upload-artifact@v4
         with:
-          name: php-cli-v${{ env.APP_VERSION }}-linux-x64-debug
+          name: php-cli-v${{ env.APP_VERSION }}-zts-linux-x64-debug
           retention-days: 90
           path: ./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/php
 
       - name: production artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: php-cli-v${{ env.APP_VERSION }}-linux-x64
+          name: php-cli-v${{ env.APP_VERSION }}-zts-linux-x64
           retention-days: 90
           path: ./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/dist/php
 
@@ -228,5 +228,5 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            php-cli-v${{ env.APP_VERSION }}-linux-x64.tar.xz
-            php-cli-v${{ env.APP_VERSION }}-linux-x64-debug.tar.xz
+            php-cli-v${{ env.APP_VERSION }}-zts-linux-x64.tar.xz
+            php-cli-v${{ env.APP_VERSION }}-zts-linux-x64-debug.tar.xz
