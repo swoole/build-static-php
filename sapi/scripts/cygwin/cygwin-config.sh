@@ -26,7 +26,6 @@ cd ${__PROJECT__}/php-src/
 test -f Makefile && make clean
 ./configure --prefix=/usr --disable-all \
     --enable-zts \
-    --enable-opcache \
     --disable-fiber-asm \
     --without-pcre-jit \
     --with-openssl --enable-openssl \
@@ -70,6 +69,7 @@ test -f Makefile && make clean
 #  --with-pdo-pgsql \
 #  --with-pgsql
 #  --with-pdo-sqlite \
+#  --enable-opcache \
 
 # swoole v6 参数
 # --enable-swoole-thread \
