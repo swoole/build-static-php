@@ -41,7 +41,7 @@ return function (Preprocessor $p) {
     }
 
 
-    $ext = (new Extension('swoole_v6'))
+    $ext = (new Extension('swoole'))
         ->withHomePage('https://github.com/swoole/swoole-src')
         ->withLicense('https://github.com/swoole/swoole-src/blob/master/LICENSE', Extension::LICENSE_APACHE2)
         ->withManual('https://wiki.swoole.com/#/')
