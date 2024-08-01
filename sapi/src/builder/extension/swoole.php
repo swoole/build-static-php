@@ -5,7 +5,8 @@ use SwooleCli\Extension;
 
 return function (Preprocessor $p) {
 
-    $swoole_tag = 'v5.1.3';
+    $swoole_tag = 'v6.0';
+    $swoole_tag = 'master';
     $file = "swoole-{$swoole_tag}.tar.gz";
 
     $url = "https://github.com/swoole/swoole-src/archive/refs/tags/{$swoole_tag}.tar.gz";
@@ -14,12 +15,14 @@ return function (Preprocessor $p) {
     $dependentExtensions = ['curl', 'openssl', 'sockets', 'mysqlnd', 'pdo'];
     $options = ' --enable-swoole --enable-sockets --enable-mysqlnd --enable-swoole-curl --enable-cares ';
     $options .= ' --enable-swoole-coro-time ';
-    $options .= ' --enable-thread-context ';
+    # $options .= ' --enable-thread-context ';
     $options .= ' --with-brotli-dir=' . BROTLI_PREFIX;
     $options .= ' --with-nghttp2-dir=' . NGHTTP2_PREFIX;
     $options .= ' --enable-swoole-pgsql ';
     $options .= ' --enable-swoole-sqlite ';
     $options .= ' --with-swoole-odbc=unixODBC,' . UNIX_ODBC_PREFIX . ' ';
+    $options .= ' --enable-swoole-thread ';
+    $options .= ' --enable-zts ';
 
     if (in_array($p->getBuildType(), ['dev', 'debug'])) {
         $options .= ' --enable-debug ';
@@ -27,7 +30,18 @@ return function (Preprocessor $p) {
         $options .= ' --enable-trace-log ';
     }
 
-    $ext = (new Extension('swoole'))
+    //linux 环境下 启用 opcache 扩展时构建报错，需要禁用 opcache
+
+    if ($p->isLinux() && 0) {
+        // 构建报错
+        $options .= ' --enable-iouring ';
+        $dependentLibraries[] = 'liburing';
+        $p->withExportVariable('URING_CFLAGS', '$(pkg-config  --cflags --static  liburing)');
+        $p->withExportVariable('URING_LIBS', '$(pkg-config    --libs   --static  liburing)');
+    }
+
+
+    $ext = (new Extension('swoole_v6'))
         ->withHomePage('https://github.com/swoole/swoole-src')
         ->withLicense('https://github.com/swoole/swoole-src/blob/master/LICENSE', Extension::LICENSE_APACHE2)
         ->withManual('https://wiki.swoole.com/#/')
@@ -40,11 +54,9 @@ return function (Preprocessor $p) {
 EOF
         )
         ->withBuildCached(false)
+        ->withAutoUpdateFile()
         ->withDependentLibraries(...$dependentLibraries)
         ->withDependentExtensions(...$dependentExtensions);
-
-    //call_user_func_array([$ext, 'withDependentLibraries'], $dependentLibraries);
-    //call_user_func_array([$ext, 'withDependentExtensions'], $dependentExtensions);
 
     $p->addExtension($ext);
 
