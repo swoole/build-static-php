@@ -24,7 +24,18 @@
 
 - [https://github.com/swoole/build-static-php/releases](https://github.com/swoole/build-static-php/releases)
 
+## 立即使用 php-fpm
+
+```shell
+
+curl -fSL https://github.com/swoole/swoole-cli/blob/build_native_php/setup-php-fpm-runtime.sh?raw=true | bash
+
+curl -fSL https://github.com/swoole/build-static-php/blob/main/setup-php-fpm-runtime.sh?raw=true | bash
+
+```
+
 ## `php-fpm`构建文档
+=======
 
 - [linux 版构建文档](docs/linux.md)
 - [macOS 版构建文档](docs/macOS.md)
