@@ -35,7 +35,6 @@ curl -fSL https://github.com/swoole/build-static-php/blob/main/setup-php-fpm-run
 ```
 
 ## `php-fpm`构建文档
-=======
 
 - [linux 版构建文档](docs/linux.md)
 - [macOS 版构建文档](docs/macOS.md)
