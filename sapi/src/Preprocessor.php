@@ -765,7 +765,8 @@ EOF;
                         echo '[ext/' . $ext_name . '] cached ' . PHP_EOL;
                     }
                 } else {
-                    echo $cmd = "tar --strip-components=1 -C $dst_dir -xf {$ext->path}";
+                    $cmd = "tar --strip-components=1 -C $dst_dir -xf {$ext->path}";
+                    echo "[Extension] " . $cmd;
                     echo PHP_EOL;
                     echo `$cmd`;
                     echo PHP_EOL;
@@ -1126,6 +1127,7 @@ EOF;
         }
         $this->mkdirIfNotExists($this->libraryDir, 0777, true);
         $this->mkdirIfNotExists($this->extensionDir, 0777, true);
+        $this->deleteDirectoryIfExists($this->getWorkExtDir());
         include __DIR__ . '/constants.php';
 
         $extAvailabled = [];
@@ -1156,7 +1158,7 @@ EOF;
         if ($this->isMacos()) {
             if (is_file('/usr/local/opt/bison/bin/bison')) {
                 $this->withBinPath('/usr/local/opt/bison/bin');
-            } elseif (is_file('/opt/homebrew/opt/bison/bin/bison')) { //兼容 github action
+            } elseif (is_file('/opt/homebrew/opt/bison/bin/bison')) { //兼容 arm64
                 $this->withBinPath('/opt/homebrew/opt/bison/bin/');
             } else {
                 $this->loadDependentLibrary("bison");
@@ -1241,6 +1243,7 @@ EOF;
             echo "{$item->name}\n";
         }
     }
+
 
     public function getRealOsType(): string
     {
