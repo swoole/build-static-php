@@ -40,7 +40,6 @@ test -f Makefile && make clean
   --enable-mbstring \
   --enable-ctype \
   --with-zlib \
-  --with-zip \
   --enable-posix \
   --enable-sockets \
   --enable-pdo \
@@ -72,7 +71,6 @@ test -f Makefile && make clean
 #  --with-pdo-pgsql \
 #  --with-pgsql
 #  --with-pdo-sqlite \
-
-# swoole v6 参数
-
 #  --with-zip   #  cygwin libzip-devel 版本库暂不支持函数 zip_encryption_method_supported （2020年新增函数)
+
+# cygwin 环境下 swoole v6 编译成功，需要修改 php 源码，详情参考： https://github.com/swoole/swoole-cli/commit/172c76445a631abb1b32fc2a721a2dd9d5a5fc0d
