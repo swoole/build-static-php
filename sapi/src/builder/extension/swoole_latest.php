@@ -47,7 +47,6 @@ return function (Preprocessor $p) {
             git clone -b master --depth=1 https://github.com/swoole/swoole-src.git
 EOF
         )
-        ->withAutoUpdateFile()
         ->withOptions(implode(' ', $options))
         ->withBuildCached(false)
         ->withAutoUpdateFile()

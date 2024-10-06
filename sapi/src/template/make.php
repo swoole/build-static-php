@@ -23,22 +23,12 @@ export PKG_CONFIG_PATH=<?= implode(':', $this->pkgConfigPaths) . PHP_EOL ?>
 export PATH=<?= implode(':', $this->binPaths) . PHP_EOL ?>
 
 OPTIONS="--disable-all \
-<<<<<<< HEAD
---disable-cgi  \
---enable-shared=no \
---enable-static=yes \
---enable-zts \
---without-valgrind \
---enable-cli  \
---disable-phpdbg \
-=======
     --enable-shared=no \
     --enable-static=yes \
     --without-valgrind \
     --disable-cgi  \
     --enable-cli  \
     --disable-phpdbg \
->>>>>>> build_native_php
 <?php foreach ($this->extensionList as $item) : ?>
     <?=$item->options?> \
 <?php endforeach; ?>

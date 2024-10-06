@@ -20,9 +20,6 @@ return function (Preprocessor $p) {
         $options[] = ' --enable-swoole-coro-time  ';
     }
 
-    //call_user_func_array([$ext, 'withDependentLibraries'], $dependentLibraries);
-    //call_user_func_array([$ext, 'withDependentExtensions'], $dependentExtensions);
-
     $dependentLibraries = ['curl', 'openssl', 'cares', 'zlib', 'brotli', 'nghttp2', 'sqlite3', 'unix_odbc', 'pgsql'];
     $dependentExtensions = ['curl', 'openssl', 'sockets', 'mysqlnd', 'pdo'];
 
@@ -36,6 +33,8 @@ return function (Preprocessor $p) {
     $options[] = '--enable-swoole-pgsql';
     $options[] = '--enable-swoole-sqlite';
     $options[] = '--with-swoole-odbc=unixODBC,' . UNIX_ODBC_PREFIX;
+    $options[] = '--enable-swoole-thread';
+    $options[] = '--enable-zts';
 
     $p->addExtension((new Extension('swoole'))
         ->withHomePage('https://github.com/swoole/swoole-src')
