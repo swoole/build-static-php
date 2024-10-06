@@ -29,6 +29,7 @@ OPTIONS="--disable-all \
     --disable-cgi  \
     --enable-cli  \
     --disable-phpdbg \
+    --enable-zts \
 <?php foreach ($this->extensionList as $item) : ?>
     <?=$item->options?> \
 <?php endforeach; ?>
