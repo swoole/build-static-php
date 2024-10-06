@@ -46,16 +46,17 @@ make_<?=$item->name?>() {
     <?php endif ;?>
 
     <?php if ($item->enableInstallCached) : ?>
-    if [ -f <?= $this->getGlobalPrefix() . '/'.  $item->name ?>/.completed ] ;then
-        echo "[<?=$item->name?>]  library cached , skip.."
+    if [ -f <?= $this->getGlobalPrefix() . '/' . $item->name ?>/.completed ] ;then
+        echo "[<?= $item->name ?>]  library cached , skip.."
         return 0
     fi
     <?php endif; ?>
 
-    <?php if ($item->cleanBuildDirectory || ! $item->enableBuildCached) : ?>
-    if [ -d <?=$this->getBuildDir()?>/<?=$item->name?>/ ]; then
-        rm -rf <?=$this->getBuildDir()?>/<?=$item->name?>/
-    fi
+    # If the install directory exist, clean the install directory
+    test -d  <?= $this->getGlobalPrefix() . '/' . $item->name ?>/ && rm -rf  <?= $this->getGlobalPrefix() . '/' . $item->name ?>/ ;
+
+    <?php if (!$item->enableBuildCached) : ?>
+        test -d <?= $this->getBuildDir() ?>/<?= $item->name ?>/ && rm -rf <?= $this->getBuildDir() ?>/<?= $item->name ?>/ ;
     <?php endif; ?>
 
     # If the source code directory does not exist, create a directory and decompress the source code archive
@@ -69,11 +70,6 @@ make_<?=$item->name?>() {
             exit  $result_code
         fi
     fi
-
-    <?php if ($item->cleanPreInstallDirectory) : ?>
-    # If the install directory exist, clean the install directory
-    test -d <?=$item->preInstallDirectory?>/ && rm -rf <?=$item->preInstallDirectory?>/ ;
-    <?php endif; ?>
 
     cd <?=$this->getBuildDir()?>/<?=$item->name?>/
 
@@ -350,6 +346,7 @@ make_build() {
     file <?= $this->phpSrcDir  ?>/sapi/fpm/php-fpm
     readelf -h <?= $this->phpSrcDir  ?>/sapi/fpm/php-fpm
 <?php endif; ?>
+
     # make install
     mkdir -p <?= BUILD_PHP_INSTALL_PREFIX ?>/bin/
 
@@ -373,6 +370,10 @@ make_archive() {
     PHP_CLI_FILE_DEBUG=php-fpm-v${PHP_VERSION}-<?=$this->getOsType()?>-<?=$this->getSystemArch()?>-debug.tar.xz
     tar -cJvf ${PHP_CLI_FILE_DEBUG} php-fpm LICENSE
 
+    HASH=$(sha256sum ${PHP_CLI_FILE_DEBUG} | awk '{print $1}')
+    echo " ${PHP_CLI_FILE_DEBUG} sha256sum: ${HASH} "
+    echo -n ${HASH} > ${PHP_CLI_FILE_DEBUG}.sha256sum
+
 
     mkdir -p <?= BUILD_PHP_INSTALL_PREFIX ?>/bin/dist
     cp -f php-fpm       dist/
@@ -383,8 +384,15 @@ make_archive() {
     PHP_CLI_FILE=php-fpm-v${PHP_VERSION}-<?=$this->getOsType()?>-<?=$this->getSystemArch()?>.tar.xz
     tar -cJvf ${PHP_CLI_FILE} php-fpm LICENSE
 
+    HASH=$(sha256sum ${PHP_CLI_FILE} | awk '{print $1}')
+    echo " ${PHP_CLI_FILE} sha256sum: ${HASH} "
+    echo -n ${HASH} > ${PHP_CLI_FILE}.sha256sum
+
+
     mv <?= BUILD_PHP_INSTALL_PREFIX ?>/bin/dist/${PHP_CLI_FILE}  ${__PROJECT_DIR__}/
+    mv <?= BUILD_PHP_INSTALL_PREFIX ?>/bin/dist/${PHP_CLI_FILE}.sha256sum  ${__PROJECT_DIR__}/
     mv <?= BUILD_PHP_INSTALL_PREFIX ?>/bin/${PHP_CLI_FILE_DEBUG} ${__PROJECT_DIR__}/
+    mv <?= BUILD_PHP_INSTALL_PREFIX ?>/bin/${PHP_CLI_FILE_DEBUG}.sha256sum ${__PROJECT_DIR__}/
 
     cd ${__PROJECT_DIR__}/
 }
@@ -431,7 +439,7 @@ lib_dep_pkg() {
     if test -n  "$1"  ;then
       echo -e "[$1] dependent pkgs :\n\n${array_name[$1]} \n"
     else
-      for i in ${!array_name[@]}
+      for i in "${!array_name[@]}"
       do
             echo -e "[${i}] dependent pkgs :\n\n${array_name[$i]} \n"
             echo "=================================================="
@@ -441,7 +449,6 @@ lib_dep_pkg() {
 }
 
 help() {
-    set +x
     echo "./make.sh docker-build [ china | ustc | tuna ]"
     echo "./make.sh docker-bash"
     echo "./make.sh docker-commit"
@@ -475,15 +482,25 @@ if [ "$1" = "docker-build" ] ;then
     if [ -n "$2" ]; then
         MIRROR=$2
         case "$MIRROR" in
-        china | openatom | ustc | tuna)
+        china | openatom )
             CONTAINER_BASE_IMAGE="hub.atomgit.com/library/alpine:3.18"
         ;;
         esac
     fi
+    PLATFORM=''
+    ARCH=$(uname -m)
+    case $ARCH in
+    'x86_64')
+      PLATFORM='linux/amd64'
+      ;;
+    'aarch64')
+      PLATFORM='linux/arm64'
+      ;;
+    esac
     cd ${__PROJECT_DIR__}/sapi/docker
     echo "MIRROR=${MIRROR}"
     echo "BASE_IMAGE=${CONTAINER_BASE_IMAGE}"
-    docker build --no-cache -t <?= Preprocessor::IMAGE_NAME ?>:<?= $this->getBaseImageTag() ?> -f Dockerfile  . --build-arg="MIRROR=${MIRROR}" --build-arg="BASE_IMAGE=${CONTAINER_BASE_IMAGE}"
+    docker build --no-cache -t <?= Preprocessor::IMAGE_NAME ?>:<?= $this->getBaseImageTag() ?> -f Dockerfile  . --build-arg="MIRROR=${MIRROR}" --progress=plain  --platform=${PLATFORM} --build-arg="BASE_IMAGE=${CONTAINER_BASE_IMAGE}"
     exit 0
 elif [ "$1" = "docker-bash" ] ;then
     container=$(docker ps -a -f name=<?= Preprocessor::CONTAINER_NAME ?> | tail -n +2 2> /dev/null)
