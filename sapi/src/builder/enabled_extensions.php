@@ -1,6 +1,6 @@
 <?php
 return [
-    //'opcache', //需要修改PHP源码才能启用
+    'opcache', //需要修改PHP源码才能启用
     'curl',
     'iconv',
     'bz2',
@@ -43,5 +43,6 @@ return [
     'ds',
     'xlswriter',
     'ssh2',
-    'pgsql'
+    'pgsql',
+    'pdo_pgsql'
 ];
