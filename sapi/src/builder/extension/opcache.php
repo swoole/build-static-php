@@ -7,7 +7,7 @@ return function (Preprocessor $p) {
     $p->addExtension(
         (new Extension('opcache'))
             ->withHomePage('https://www.php.net/opcache')
-            ->withOptions('--enable-opcache')
+            ->withOptions('--enable-opcache --disable-opcache-jit ')
     );
 
     // 扩展钩子 写法
