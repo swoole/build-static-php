@@ -39,6 +39,8 @@ return function (Preprocessor $p) {
         fi
 EOF;
 
+        //SAPI  php-fpm 模式不支持此 设置
+        return '';
         return $cmd;
     });
 };
