@@ -6,10 +6,10 @@ use SwooleCli\Extension;
 return function (Preprocessor $p) {
     $file = "swoole-latest.tar.gz";
     $options = [];
-    if (in_array($p->getBuildType(), ['dev', 'debug'])) {
+
+    if ($p->getBuildType() === 'debug') {
         $options[] = ' --enable-debug ';
         $options[] = ' --enable-debug-log ';
-        $options[] = ' --enable-trace-log ';
         $options[] = ' --enable-swoole-coro-time  ';
     }
 
@@ -28,6 +28,7 @@ return function (Preprocessor $p) {
     $options[] = '--with-swoole-odbc=unixODBC,' . UNIX_ODBC_PREFIX;
     $options[] = '--enable-swoole-thread';
     $options[] = '--enable-zts';
+    $options[] = '--disable-opcache-jit';
 
     if ($p->isLinux() && $p->getInputOption('with-iouring')) {
         $options[] = '--enable-iouring';
@@ -50,9 +51,9 @@ EOF
         ->withAutoUpdateFile()
         ->withOptions(implode(' ', $options))
         ->withBuildCached(false)
+        ->withAutoUpdateFile()
         ->withDependentLibraries(...$dependentLibraries)
         ->withDependentExtensions(...$dependentExtensions);
-
 
     //call_user_func_array([$ext, 'withDependentLibraries'], $dependentLibraries);
     //call_user_func_array([$ext, 'withDependentExtensions'], $dependentExtensions);

@@ -111,6 +111,7 @@ class Preprocessor
     protected array $extCallbacks = [];
     protected array $beforeConfigure = [];
     protected string $configureVarables;
+
     protected string $buildType = 'release';
     protected bool $inVirtualMachine = false;
 
@@ -180,16 +181,6 @@ class Preprocessor
             return 'base';
         } else {
             return 'base' . '-' . $arch;
-        }
-    }
-
-    public function getBaseImageDockerFile(): string
-    {
-        $arch = $this->getSystemArch();
-        if ($arch == 'x64') {
-            return 'Dockerfile';
-        } else {
-            return 'Dockerfile' . '-' . $arch;
         }
     }
 
@@ -361,7 +352,7 @@ class Preprocessor
             /*
              * sockat 代理例子
              * http://www.dest-unreach.org/socat/doc/socat.html
-             * socat - socks4a:<socks-server>::%h:%p,socksport=2000
+             * socat - socks4a:<socks-server>:%h:%p,socksport=2000
              * socat - proxy:<proxy-server>:%h:%p,proxyport=2000
              */
 
@@ -427,8 +418,7 @@ __GIT_PROXY_CONFIG_EOF;
      * @param string $httpProxyConfig
      * @return void
      */
-
-    protected function downloadFile(string $url, string $file, object $project = null, string $httpProxyConfig = ''): void
+    protected function downloadFile(string $url, string $file, ?object $project = null, string $httpProxyConfig = ''): void
     {
         $retry_number = DOWNLOAD_FILE_RETRY_NUMBE;
         $user_agent = DOWNLOAD_FILE_USER_AGENT;//--user-agent='{$user_agent}'
@@ -1120,16 +1110,6 @@ EOF;
             }
         }
 
-        if ($this->isMacos()) {
-            if (is_file('/usr/local/opt/bison/bin/bison')) {
-                $this->withBinPath('/usr/local/opt/bison/bin');
-            } elseif (is_file('/opt/homebrew/opt/bison/bin/bison')) { //兼容 arm64
-                $this->withBinPath('/opt/homebrew/opt/bison/bin/');
-            } else {
-                $this->loadDependentLibrary("bison");
-            }
-        }
-
         // autoload extension depend extension
         foreach ($this->extensionMap as $ext) {
             foreach ($ext->dependentExtensions as $extension_name) {
@@ -1175,6 +1155,7 @@ EOF;
             __DIR__ . '/template/make-export-variables.php',
             $this->rootDir . '/make-export-variables.sh'
         );
+        shell_exec('chmod a+x ' . $this->rootDir . '/make.sh');
         $this->mkdirIfNotExists($this->rootDir . '/bin');
         $this->generateFile(__DIR__ . '/template/license.php', $this->rootDir . '/bin/LICENSE');
         $this->generateFile(__DIR__ . '/template/credits.php', $this->rootDir . '/bin/credits.html');

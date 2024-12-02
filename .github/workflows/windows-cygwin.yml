@@ -5,7 +5,7 @@ on:
   pull_request:
 
 env:
-  BUILD_PHP_VERSION: 8.2.13
+  BUILD_PHP_VERSION: 8.2.25
 
 jobs:
   windows-cygwin:
@@ -14,9 +14,11 @@ jobs:
     strategy:
       matrix:
         php-version:
-          - "8.2.23"
-          - "8.1.29"
-          - "8.3.11"
+          - "8.2.25"
+          - "8.1.30"
+          - "8.3.13"
+          - "8.4.1"
+
     steps:
       - name: Prepare git
         run: |
@@ -84,7 +86,7 @@ jobs:
 
       - name: Configure
         run: |
-          bash ./sapi/scripts/cygwin/cygwin-config.sh
+          bash ./sapi/scripts/cygwin/cygwin-config.sh --php-version ${{ env.BUILD_PHP_VERSION }}
 
       - name: Build
         run: |
@@ -94,7 +96,8 @@ jobs:
         run: |
           ./bin/php.exe -v
           ./bin/php.exe -m
-          ./bin/php.exe --ri pdo_pgsql
+          ./bin/php.exe --ri mongodb
+          ./bin/php.exe --ri gd
           ./bin/php.exe --ri swoole
           ./bin/php.exe  -r "echo PHP_VERSION;"
 
