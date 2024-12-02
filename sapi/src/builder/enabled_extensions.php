@@ -1,6 +1,6 @@
 <?php
 return [
-    //'opcache', //需要修改PHP源码才能启用
+    'opcache', //需要修改PHP源码才能启用
     'curl',
     'iconv',
     'bz2',
@@ -40,13 +40,10 @@ return [
     //'gettext',
     'uuid',
     //'phpy'
-<<<<<<< HEAD
-    'xslwriter',
     'apcu',
     'ds',
     'ssh2',
-    'pgsql'
-=======
-    'xlswriter'
->>>>>>> experiment-feature
+    'xlswriter',
+    'pgsql',
+    'pdo_pgsql'
 ];
