@@ -40,10 +40,10 @@ return [
     //'gettext',
     'uuid',
     //'phpy'
+    'xlswriter',
     'apcu',
     'ds',
     'ssh2',
-    'xlswriter',
     'pgsql',
     'pdo_pgsql'
 ];
