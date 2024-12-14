@@ -44,6 +44,6 @@ return [
     'apcu',
     'ds',
     'ssh2',
-    'pgsql',
-    'pdo_pgsql'
+    //'pgsql',
+    //'pdo_pgsql'
 ];
