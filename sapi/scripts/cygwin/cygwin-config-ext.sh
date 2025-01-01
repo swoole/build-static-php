@@ -13,8 +13,8 @@ cd ${__PROJECT__}
 
 ROOT=${__PROJECT__}
 
-PHP_VERSION='8.2.25'
-SWOOLE_VERSION='v5.1.6'
+PHP_VERSION='8.2.27'
+SWOOLE_VERSION='v6.0.0'
 X_PHP_VERSION='8.2'
 
 while [ $# -gt 0 ]; do
@@ -22,9 +22,6 @@ while [ $# -gt 0 ]; do
   --php-version)
     PHP_VERSION="$2"
     X_PHP_VERSION=$(echo ${PHP_VERSION:0:3})
-    if [ "$X_PHP_VERSION" = "8.4" ]; then
-      SWOOLE_VERSION='v6.0.0-rc1'
-    fi
     ;;
   --swoole-version)
     SWOOLE_VERSION="$2"

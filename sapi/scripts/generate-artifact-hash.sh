@@ -36,9 +36,9 @@ case $OS in
   ;;
 esac
 
-APP_VERSION='v8.3.13'
+APP_VERSION='v8.3.15'
 APP_NAME='php-cli'
-VERSION='v1.6.0'
+VERSION='v1.7.1'
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -120,11 +120,11 @@ UNIX_DOWNLOAD_SWOOLE_CLIE_RUNTIME() {
   APP_VERSION="$3"
   APP_DOWNLOAD_URL="https://github.com/swoole/build-static-php/releases/download/${VERSION}/${APP_NAME}-${APP_VERSION}-${OS}-${ARCH}.tar.xz"
   APP_RUNTIME="${APP_NAME}-${APP_VERSION}-${OS}-${ARCH}"
-  test -f ${APP_RUNTIME}.tar.xz || curl -LSo ${APP_RUNTIME}.tar.xz ${APP_DOWNLOAD_URL}
+  test -f ${APP_RUNTIME}.tar.xz || curl -fSLo ${APP_RUNTIME}.tar.xz ${APP_DOWNLOAD_URL}
 
   APP_DOWNLOAD_URL="https://github.com/swoole/build-static-php/releases/download/${VERSION}/${APP_NAME}-${APP_VERSION}-${OS}-${ARCH}-debug.tar.xz"
   APP_RUNTIME="${APP_NAME}-${APP_VERSION}-${OS}-${ARCH}-debug"
-  test -f ${APP_RUNTIME}.tar.xz || curl -LSo ${APP_RUNTIME}.tar.xz ${APP_DOWNLOAD_URL}
+  test -f ${APP_RUNTIME}.tar.xz || curl -fSLo ${APP_RUNTIME}.tar.xz ${APP_DOWNLOAD_URL}
 }
 
 UNIX_DOWNLOAD() {
@@ -141,9 +141,7 @@ WINDOWS_DOWNLOAD_SWOOLE_CLIE_RUNTIME() {
   APP_DOWNLOAD_URL="https://github.com/swoole/build-static-php/releases/download/${VERSION}/${APP_NAME}-${APP_VERSION}-cygwin-${ARCH}.zip"
 
   APP_RUNTIME="${APP_NAME}-${APP_VERSION}-cygwin-${ARCH}"
-  test -f ${APP_RUNTIME}.zip || curl -LSo ${APP_RUNTIME}.zip ${APP_DOWNLOAD_URL}
-  test -f all-deps.zip || curl -LSo all-deps.zip https://github.com/swoole/swoole-cli/releases/download/v5.1.5.1/all-deps.zip
-
+  test -f ${APP_RUNTIME}.zip || curl -fSLo ${APP_RUNTIME}.zip ${APP_DOWNLOAD_URL}
 }
 WINDOWS_DOWNLOAD() {
   WINDOWS_DOWNLOAD_SWOOLE_CLIE_RUNTIME "$1"
@@ -156,16 +154,18 @@ RUN_DOWNLOAD() {
 
 DOWNLOAD() {
   declare -A PHP_VERSIONS
-  PHP_VERSIONS[0]="v8.2.25"
-  PHP_VERSIONS[1]="v8.1.30"
-  PHP_VERSIONS[2]="v8.3.13"
-  PHP_VERSIONS[3]="v8.4.1"
+  PHP_VERSIONS[0]="v8.2.27"
+  PHP_VERSIONS[1]="v8.1.31"
+  PHP_VERSIONS[2]="v8.3.15"
+  PHP_VERSIONS[3]="v8.4.2"
   for i in "${!PHP_VERSIONS[@]}"; do
     # echo ${PHP_VERSIONS[$i]}
     RUN_DOWNLOAD "${PHP_VERSIONS[$i]}"
   done
 
 }
+
+test -f all-deps.zip || curl -fSLo all-deps.zip https://github.com/swoole/build-static-php/releases/download/${VERSION}/all-deps.zip
 
 DOWNLOAD
 
