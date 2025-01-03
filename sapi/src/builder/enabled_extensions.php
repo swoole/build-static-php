@@ -23,6 +23,7 @@ return [
     'intl',
     'fileinfo',
     'pdo_mysql',
+    'pdo_sqlite',
     'soap',
     'xsl',
     'gmp',
