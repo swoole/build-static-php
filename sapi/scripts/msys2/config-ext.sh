@@ -12,7 +12,7 @@ __PROJECT__=$(
 cd ${__PROJECT__}
 
 PHP_VERSION='8.2.27'
-SWOOLE_VERSION='v6.0.1'
+SWOOLE_VERSION='v6.0.0'
 X_PHP_VERSION='8.2'
 
 while [ $# -gt 0 ]; do
@@ -32,7 +32,6 @@ while [ $# -gt 0 ]; do
 done
 
 REDIS_VERSION=6.1.0
-MONGODB_VERSION=1.17.2
 YAML_VERSION=2.2.2
 IMAGICK_VERSION=3.7.0
 
@@ -40,7 +39,7 @@ mkdir -p pool/ext
 mkdir -p pool/lib
 mkdir -p pool/php-tar
 
-WORK_TEMP_DIR=${__PROJECT__}/var/cygwin-build/
+WORK_TEMP_DIR=${__PROJECT__}/var/msys2-build/
 EXT_TEMP_CACHE_DIR=${WORK_TEMP_DIR}/pool/ext/
 mkdir -p ${WORK_TEMP_DIR}
 mkdir -p ${EXT_TEMP_CACHE_DIR}
@@ -110,6 +109,7 @@ cd ${__PROJECT__}/pool/php-tar
 if [ ! -f php-${PHP_VERSION}.tar.gz ]; then
   curl -fSLo php-${PHP_VERSION}.tar.gz https://github.com/php/php-src/archive/refs/tags/php-${PHP_VERSION}.tar.gz
 fi
+
 test -d ${WORK_TEMP_DIR}/php-src && rm -rf ${WORK_TEMP_DIR}/php-src
 mkdir -p ${WORK_TEMP_DIR}/php-src
 tar --strip-components=1 -C ${WORK_TEMP_DIR}/php-src -xf php-${PHP_VERSION}.tar.gz

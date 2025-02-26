@@ -10,14 +10,15 @@ __PROJECT__=$(
   pwd
 )
 cd ${__PROJECT__}
-WORK_TEMP_DIR=${__PROJECT__}/var/cygwin-build/
+mkdir -p bin
+
+WORK_TEMP_DIR=${__PROJECT__}/var/msys2-build/
 cd ${WORK_TEMP_DIR}/php-src/
 
 mkdir -p bin/.libs
 # export LDFLAGS="-all-static"
 
 LOGICAL_PROCESSORS=$(nproc)
-
 set +u
 if [ -n "${GITHUB_ACTION}" ]; then
   if test $LOGICAL_PROCESSORS -ge 4; then
