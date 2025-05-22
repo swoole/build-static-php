@@ -182,7 +182,7 @@ jobs:
             composer install  --no-interaction --no-autoloader --no-scripts --profile --no-dev
             composer dump-autoload --optimize --profile --no-dev
 
-            php prepare.php  +inotify ${{ inputs.build_type }} ${{ inputs.build_options }} --with-php-version=${{ env.BUILD_PHP_VERSION }}
+            php prepare.php  --with-static-pie +inotify +apcu +ds +xlswriter +ssh2 +pgsql +uuid ${{ inputs.build_type }} ${{ inputs.build_options }} --with-php-version=${{ env.BUILD_PHP_VERSION }}
 
             bash make-install-deps.sh
 
@@ -204,29 +204,41 @@ jobs:
           ./thirdparty/php-src/sapi/fpm/php-fpm -v
           ./thirdparty/php-src/sapi/fpm/php-fpm -m
           ./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/php-fpm -v
+          ldd ./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/php-fpm
           file ./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/php-fpm
           readelf -h ./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/php-fpm
           APP_VERSION=$(./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/php-fpm -v | head -n 1 | awk '{print $2}')
+          echo ${APP_VERSION}
+          echo ${APP_VERSION}  > APP_VERSION
+          echo "php-fpm"  > APP_NAME
+
+      - name: get app version
+        run: |
+          APP_VERSION=$(cat ./APP_VERSION)
+          APP_NAME=$(cat ./APP_NAME)
+          echo $APP_VERSION
+          echo $APP_NAME
           echo "APP_VERSION=${APP_VERSION}" >> $GITHUB_ENV
+          echo "APP_NAME=${APP_NAME}" >> $GITHUB_ENV
 
       - name: production artifacts debug
         uses: actions/upload-artifact@v4
         with:
-          name: php-fpm-v${{ env.APP_VERSION }}-linux-x64-debug
+          name: ${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-linux-x64-debug
           retention-days: 90
-          path: ./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/php-fpm
+          path: ./bin/php-${{ env.APP_VERSION }}/bin/php-fpm
 
       - name: production artifacts
         uses: actions/upload-artifact@v4
         with:
           name: php-fpm-v${{ env.APP_VERSION }}-linux-x64
           retention-days: 90
-          path: ./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/dist/php-fpm
+          path: ./bin/php-${{ env.APP_VERSION }}/bin/dist/php-fpm
 
       - name: gh release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            php-fpm-v${{ env.APP_VERSION }}-linux-x64.tar.xz
-            php-fpm-v${{ env.APP_VERSION }}-linux-x64-debug.tar.xz
+            ${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-linux-x64.tar.xz
+            ${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-linux-x64-debug.tar.xz
