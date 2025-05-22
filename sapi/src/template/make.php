@@ -376,14 +376,9 @@ make_build() {
     xattr -cr <?= $this->phpSrcDir  ?>/sapi/fpm/php-fpm
     otool -L <?= $this->phpSrcDir  ?>/sapi/fpm/php-fpm
 <?php else : ?>
-<<<<<<< HEAD
+    ldd  <?= $this->phpSrcDir  ?>/sapi/fpm/php-fpm
     file <?= $this->phpSrcDir  ?>/sapi/fpm/php-fpm
     readelf -h <?= $this->phpSrcDir  ?>/sapi/fpm/php-fpm
-=======
-    ldd <?= $this->phpSrcDir  ?>/sapi/cli/php
-    file <?= $this->phpSrcDir  ?>/sapi/cli/php
-    readelf -h <?= $this->phpSrcDir  ?>/sapi/cli/php
->>>>>>> build_native_php
 <?php endif; ?>
 
     # make install
