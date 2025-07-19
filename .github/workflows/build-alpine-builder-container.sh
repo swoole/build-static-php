@@ -50,7 +50,7 @@ case $ARCH in
   PLATFORM="linux/mips64le"
   ;;
 'loongarch64')
-  PLATFORM="linux/mips64le"
+  PLATFORM="linux/loongarch64"
   ;;
 esac
 
@@ -88,6 +88,8 @@ EOF
 # https://cr.loongnix.cn/search
 
 : <<'EOF'
+
+# https://github.com/tonistiigi/binfmt
 
 # docker.io/tonistiigi/binfmt:latest
      "supported": [

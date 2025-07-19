@@ -9,15 +9,15 @@ env:
 
 jobs:
   windows-cygwin:
-    if: 0
+    if: 1
     runs-on: windows-2022
     strategy:
       matrix:
         php-version:
-          - "8.2.28"
-          - "8.1.32"
-          - "8.3.19"
-          - "8.4.5"
+          - "8.2.29"
+          - "8.1.33"
+          - "8.3.23"
+          - "8.4.10"
     steps:
       - name: Show Environment Info
         shell: cmd
@@ -39,7 +39,6 @@ jobs:
           git config --global core.eol lf
           git config --global core.ignorecase false
           git config --global --add safe.directory ${{ github.workspace }}
-          ipconfig
 
       - uses: actions/checkout@v4
       - name: set php version
@@ -47,11 +46,6 @@ jobs:
         shell: bash
         run: |
           echo "BUILD_PHP_VERSION=${{ matrix.php-version }}" >> $GITHUB_ENV
-
-      - name: Prepare submodule
-        run: |
-          ipconfig /all
-          # git submodule update --init
 
       - name: Cache cygwin packages
         id: cache-cygwin
@@ -98,12 +92,15 @@ jobs:
         run: |
           bash ./sapi/scripts/cygwin/install-re2c.sh
 
+      - name: install deps lib with source code
+        shell: C:\cygwin\bin\bash.EXE --noprofile --norc -e -o pipefail -o igncr   {0}
+        run: |
+          bash sapi/scripts/msys2/install-libzip.sh
+
       - name: Prepare
         shell: C:\cygwin\bin\bash.EXE --noprofile --norc -e -o pipefail -o igncr   {0}
         run: |
-          # git config --global --add safe.directory /cygdrive/d/a/swoole-cli/swoole-cli
-          # git submodule update --init
-          bash ./sapi/scripts/cygwin/cygwin-config-ext.sh --php-version ${{ env.BUILD_PHP_VERSION }}
+          bash ./sapi/scripts/cygwin/cygwin-config-ext.sh --php-version ${{ env.BUILD_PHP_VERSION }} --swoole-version master
 
       - name: Configure
         shell: C:\cygwin\bin\bash.EXE --noprofile --norc -e -o pipefail -o igncr   {0}
@@ -115,14 +112,22 @@ jobs:
         run: |
           bash ./sapi/scripts/cygwin/cygwin-build.sh
 
+      - name: Archive
+        run: |
+          bash ./sapi/scripts/cygwin/cygwin-archive.sh
+
       - name: Show Build Result
         run: |
           ./bin/php.exe -v
           ./bin/php.exe -m
-          ./bin/php.exe --ri mongodb
-          ./bin/php.exe --ri gd
+          ./bin/php.exe --ri curl
+          ./bin/php.exe --ri openssl
           ./bin/php.exe --ri swoole
+          ./bin/php.exe --ri zip
+          ./bin/php.exe --ri gd
           ./bin/php.exe  -r "echo PHP_VERSION;"
+          ./bin/php.exe  -r "echo getcwd();echo PHP_EOL;"
+          ldd ./bin/php.exe
 
       - name: get app version with bash
         # 参考 https://github.com/marketplace/actions/install-cygwin
@@ -151,9 +156,6 @@ jobs:
           # Add-Content -Path $env:GITHUB_ENV -Value "name=$value"
           # Add-Content -Path $env:GITHUB_ENV -Value "APP_VERSION=$APP_VERSION"
 
-      - name: Archive
-        run: |
-          bash ./sapi/scripts/cygwin/cygwin-archive.sh
 
       - name: production artifacts
         uses: actions/upload-artifact@v4

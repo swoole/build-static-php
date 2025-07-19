@@ -9,7 +9,7 @@ on:
 
 jobs:
   auto-cache-pool:
-    if: ${{ (github.repository_owner == 'swoole') }}
+    if: ${{ (github.repository_owner == 'swoole') || (github.repository_owner == 'jingjingxyk') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,7 +44,7 @@ jobs:
         uses: actions/cache@v4
         id: php-runtime-cache
         with:
-          path: ${{ github.workspace }}/bin/runtime
+          path: ${{ github.workspace }}/runtime
           key: ${{ runner.os }}-x86_64-php-runtime
 
       - name: Cache PHP Vendor
@@ -73,13 +73,14 @@ jobs:
           mkdir -p pool/ext
           mkdir -p pool/php-tar/
           mkdir -p runtime/
-          if [ ! -f runtime/php ] ; then
+          test -f runtime/php && rm -f runtime/php
+          if [ ! -f runtime/php/php ] ; then
               bash  setup-php-runtime.sh
           fi
 
           WORK_DIR=${{ github.workspace }}
-          export PATH=${WORK_DIR}/runtime/:$PATH
-          alias php="php -d curl.cainfo=${WORK_DIR}/runtime/cacert.pem -d openssl.cafile=${WORK_DIR}/runtime/cacert.pem"
+          export PATH=${WORK_DIR}/runtime/php/:$PATH
+          alias php="php -d curl.cainfo=${WORK_DIR}/runtime/php/cacert.pem -d openssl.cafile=${WORK_DIR}/runtime/php/cacert.pem"
 
           composer install  --no-interaction --no-autoloader --no-scripts --profile  --no-dev
           composer dump-autoload --optimize --profile --no-dev
@@ -87,10 +88,10 @@ jobs:
           php prepare.php  +inotify +apcu +ds +ssh2  +uuid +protobuf +gettext --with-libavif=1 --show-tarball-hash=1
           php prepare.php           +apcu +ds +ssh2  +uuid +protobuf +gettext --with-libavif=1 --show-tarball-hash=1 @macos
           # php sapi/scripts/download-php-src-archive.php
-          php prepare.php  --show-tarball-hash=1 --with-php-version=8.1.32
-          php prepare.php  --show-tarball-hash=1 --with-php-version=8.2.28
-          php prepare.php  --show-tarball-hash=1 --with-php-version=8.3.19
-          php prepare.php  --show-tarball-hash=1 --with-php-version=8.4.5
+          php prepare.php  --show-tarball-hash=1 --with-php-version=8.1.33
+          php prepare.php  --show-tarball-hash=1 --with-php-version=8.2.29
+          php prepare.php  --show-tarball-hash=1 --with-php-version=8.3.23
+          php prepare.php  --show-tarball-hash=1 --with-php-version=8.4.10
 
           cd ${{ github.workspace }}/pool/
           zip -9 -r ${WORK_DIR}/all-deps.zip ext lib php-tar
