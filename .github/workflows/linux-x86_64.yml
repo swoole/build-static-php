@@ -205,7 +205,6 @@ jobs:
           ./thirdparty/php-src/sapi/fpm/php-fpm -v
           ./thirdparty/php-src/sapi/fpm/php-fpm -m
           ./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/php-fpm -v
-          ldd ./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/php-fpm
           file ./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/php-fpm
           readelf -h ./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/php-fpm
           APP_VERSION=$(./bin/php-${{ env.BUILD_PHP_VERSION }}/bin/php-fpm -v | head -n 1 | awk '{print $2}')
