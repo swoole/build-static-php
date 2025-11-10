@@ -47,5 +47,5 @@ return [
     'pdo_pgsql',
     'xlswriter',
     'gettext',
-    //'phpy'
+#    'phpy'
 ];
