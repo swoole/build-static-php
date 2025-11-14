@@ -328,7 +328,7 @@ make_config() {
         test -f ./configure.backup && rm -f ./configure.backup
     <?php endif; ?>
 <?php endif; ?>
-
+   ./configure --help
     export_variables
     export LDFLAGS="$LDFLAGS <?= $this->extraLdflags ?>"
     export EXTRA_CFLAGS='<?= $this->extraCflags ?>'
@@ -355,10 +355,10 @@ make_build() {
     <?php if ($this->isLinux()) : ?>
     export CFLAGS="$CFLAGS  "
     export LDFLAGS="$LDFLAGS  -static -all-static "
-        <?php if($this->getInputOption('with-static-pie')) : ?>
-        export CFLAGS="$CFLAGS  -fPIE"
-        export LDFLAGS="$LDFLAGS -static-pie"
-        <?php endif ;?>
+    <?php if($this->getInputOption('with-static-pie')) : ?>
+    export CFLAGS="$CFLAGS  -fPIE"
+    export LDFLAGS="$LDFLAGS -static-pie"
+    <?php endif ;?>
     <?php endif ;?>
     export LDFLAGS="$LDFLAGS   <?= $this->extraLdflags ?>"
     export EXTRA_CFLAGS='<?= $this->extraCflags ?>'
@@ -376,9 +376,11 @@ make_build() {
     xattr -cr <?= $this->phpSrcDir  ?>/sapi/fpm/php-fpm
     otool -L <?= $this->phpSrcDir  ?>/sapi/fpm/php-fpm
 <?php else : ?>
-    ldd  <?= $this->phpSrcDir  ?>/sapi/fpm/php-fpm
+    { ldd <?= $this->phpSrcDir  ?>/sapi/fpm/php-fpm ; } || { echo $? ; }
     file <?= $this->phpSrcDir  ?>/sapi/fpm/php-fpm
     readelf -h <?= $this->phpSrcDir  ?>/sapi/fpm/php-fpm
+    { readelf -l <?= $this->phpSrcDir  ?>/sapi/fpm/php-fpm ; } || { echo $? ; }
+    { objdump -p <?= $this->phpSrcDir  ?>/sapi/fpm/php-fpm ; } || { echo $? ; }
 <?php endif; ?>
 
     # make install
