@@ -118,7 +118,7 @@ jobs:
           composer install  --no-interaction --no-autoloader --no-scripts --profile
           composer dump-autoload --optimize --profile
 
-          php prepare.php --without-docker=1  --with-php-version=${{ env.BUILD_PHP_VERSION }}
+          php prepare.php --without-docker=1 --with-libavif +apcu +ds +xlswriter +ssh2 +pgsql +uuid --with-php-version=${{ env.BUILD_PHP_VERSION }}
 
       - name: Build
         run: |

@@ -128,7 +128,7 @@ jobs:
             composer install  --no-interaction --no-autoloader --no-scripts --profile --no-dev
             composer dump-autoload --optimize --profile --no-dev
 
-            php prepare.php --with-static-pie +inotify +apcu +ds +xlswriter +ssh2 +pgsql +uuid --with-php-version=${{ env.BUILD_PHP_VERSION }}
+            php prepare.php --with-static-pie --with-libavif +inotify +apcu +ds +xlswriter +ssh2 +pgsql +uuid --with-php-version=${{ env.BUILD_PHP_VERSION }}
 
             bash make-install-deps.sh
 
