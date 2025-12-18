@@ -335,8 +335,6 @@ php.ini
 sapi/webUI/deploy.sh
 sapi/webUI/public/data/
 Makefile.backup
-ldflags.log
-cppflags.log
 libs.log
 ext/apcu/
 ext/ssh2/
@@ -349,3 +347,7 @@ php-fpm-*
 !/runtime/.gitkeep
 /APP_NAME
 /APP_VERSION
+*.deb
+*.rpm
+nfpm-pkg.yaml
+!/var/.gitkeep
