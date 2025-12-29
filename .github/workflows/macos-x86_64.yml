@@ -185,5 +185,4 @@ jobs:
         with:
           files: |
             ${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-macos-x64.tar.xz
-            ${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-macos-x64-debug.tar.xz
 
