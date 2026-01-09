@@ -85,7 +85,7 @@ jobs:
           mkdir -p bin/
           mkdir -p runtime/
           test -f runtime/php && rm -f runtime/php
-          if [ ! -f runtime/php/php ] ; then
+          if [ ! -f runtime/php/pie ] ; then
               bash  setup-php-runtime.sh
           fi
           bash sapi/download-box/download-box-get-archive-from-server.sh
@@ -99,7 +99,7 @@ jobs:
           composer install  --no-interaction --no-autoloader --no-scripts --profile
           composer dump-autoload --optimize --profile
 
-          php prepare.php --with-libavif
+          php prepare.php --with-libavif --without-docker
 
           sudo apt update
           bash ./sapi/scripts/install-deps-on-ubuntu.sh
