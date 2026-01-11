@@ -52,12 +52,16 @@ return function (Preprocessor $p) {
         $p->withExportVariable('URING_LIBS', '$(pkg-config    --libs   --static  liburing)');
     }
 
-
-    $p->addExtension((new Extension('swoole'))
+    $p->addExtension(
+        (new Extension('swoole'))
         ->withHomePage('https://github.com/swoole/swoole-src')
         ->withLicense('https://github.com/swoole/swoole-src/blob/master/LICENSE', Extension::LICENSE_APACHE2)
         ->withManual('https://wiki.swoole.com/#/')
-        ->withFile($file)
+        //->withAutoUpdateFile()
+        //->withFile($file)
+        //->withPeclVersion('6.1.6')
+        //->withPieName('swoole/swoole')
+        //->withPieVersion('v6.1.6')
         ->withDownloadScript(
             'swoole-src',
             <<<EOF
@@ -67,7 +71,8 @@ EOF
         ->withOptions(implode(' ', $options))
         ->withBuildCached(false)
         ->withDependentLibraries(...$dependentLibraries)
-        ->withDependentExtensions(...$dependentExtensions));
+        ->withDependentExtensions(...$dependentExtensions)
+    );
 
     if ($p->isMacos()) {
         # 测试 macos 专有特性
