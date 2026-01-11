@@ -600,7 +600,7 @@ EOF;
                         $this->downloadFile($lib, $httpProxyConfig);
                     }
 
-                    $file = $lib->file;
+                    $file = $lib->path;
                     if (is_file($file) && (filesize($file) == 0)) {
                         unlink($file);
                     }
