@@ -18,13 +18,13 @@ on:
       php_version:
         required: true
         description: "定制构建选项: 指定 PHP 版本(版本号大于等于8.1)"
-        default: '--with-php-version=8.2.28'
+        default: '--with-php-version=8.4.17'
         type: choice
         options:
           - '--with-php-version=8.1.34'
           - '--with-php-version=8.2.30'
-          - '--with-php-version=8.3.29'
-          - '--with-php-version=8.4.16'
+          - '--with-php-version=8.3.30'
+          - '--with-php-version=8.4.17'
       build_type:
         required: true
         description: "定制构建选项: 指定构建类型"
@@ -40,7 +40,7 @@ on:
         type: string
 
 env:
-  BUILD_PHP_VERSION: 8.2.28
+  BUILD_PHP_VERSION: 8.4.17
 
 jobs:
   linux-x86_64:
@@ -51,9 +51,9 @@ jobs:
         php-version:
           - "8.2.30"
           - "8.1.34"
-          - "8.3.29"
-          - "8.4.16"
-        #  - "8.5.0"
+          - "8.3.30"
+          - "8.4.17"
+        #  - "8.5.2"
     steps:
       - uses: actions/checkout@v4
       - name: Show Environment Info
