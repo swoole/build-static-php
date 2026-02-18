@@ -9,8 +9,11 @@ return function (Preprocessor $p) {
     $swoole_tag = trim($file->current());
 
     // $swoole_tag = 'v6.0.1';
-    if (BUILD_CUSTOM_PHP_VERSION_ID == '8010') {
+    if (BUILD_CUSTOM_PHP_VERSION_ID == 8010) {
         $swoole_tag = 'v6.1.6';
+    }
+    if (BUILD_CUSTOM_PHP_VERSION_ID == 8050) {
+        $swoole_tag = 'master';
     }
 
     $file = "swoole-{$swoole_tag}.tar.gz";

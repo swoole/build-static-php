@@ -18,13 +18,14 @@ on:
       php_version:
         required: true
         description: "定制构建选项: 指定 PHP 版本(版本号大于等于8.1)"
-        default: '--with-php-version=8.4.17'
+        default: '--with-php-version=8.4.18'
         type: choice
         options:
           - '--with-php-version=8.1.34'
           - '--with-php-version=8.2.30'
           - '--with-php-version=8.3.30'
-          - '--with-php-version=8.4.17'
+          - '--with-php-version=8.4.18'
+          - '--with-php-version=8.5.3'
       build_type:
         required: true
         description: "定制构建选项: 指定构建类型"
@@ -40,7 +41,8 @@ on:
         type: string
 
 env:
-  BUILD_PHP_VERSION: 8.4.17
+  BUILD_PHP_VERSION: 8.4.18
+  DOCKER_API_VERSION: 1.44
 
 jobs:
   linux-x86_64:
@@ -52,8 +54,8 @@ jobs:
           - "8.2.30"
           - "8.1.34"
           - "8.3.30"
-          - "8.4.17"
-        #  - "8.5.2"
+          - "8.4.18"
+          - "8.5.3"
     steps:
       - uses: actions/checkout@v4
       - name: Show Environment Info
@@ -102,6 +104,10 @@ jobs:
           uid=$(id -u) && gid=$(id -g) && sudo chown -R ${uid}:${gid} /usr/local/swoole-cli
 
           mkdir -p ${{ github.workspace }}/var/build-github-action-container/
+          # export DEBIAN_FRONTEND=noninteractive
+          # sudo apt -y remove docker-ce docker-ce-cli containerd.io docker-compose-plugin docker-ce-rootless-extras docker-buildx-plugin docker-model-plugin
+          # curl -fsSL https://github.com/docker/docker-install/blob/master/install.sh?raw=true | sudo bash
+          docker info
 
       - name: Cache PHP Runtime
         uses: actions/cache@v4

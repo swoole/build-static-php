@@ -31,12 +31,15 @@ while [ $# -gt 0 ]; do
   shift $(($# > 0 ? 1 : 0))
 done
 
-REDIS_VERSION=6.2.0
+REDIS_VERSION=6.3.0
 MONGODB_VERSION=1.14.2
-YAML_VERSION=2.2.2
-IMAGICK_VERSION=3.8.0
+YAML_VERSION=2.3.0
+IMAGICK_VERSION=3.8.1
 if [ "${X_PHP_VERSION}" == "8.1" ]; then
   SWOOLE_VERSION="v6.1.6"
+fi
+if [ "${X_PHP_VERSION}" == "8.5" ]; then
+  SWOOLE_VERSION="master"
 fi
 mkdir -p pool/ext
 mkdir -p pool/lib
