@@ -10,10 +10,10 @@ return function (Preprocessor $p) {
 
     // $swoole_tag = 'v6.0.1';
     if (BUILD_CUSTOM_PHP_VERSION_ID == 8010) {
-        $swoole_tag = 'v6.1.6';
+        $swoole_tag = 'v6.1.7';
     }
     if (BUILD_CUSTOM_PHP_VERSION_ID == 8050) {
-        $swoole_tag = 'master';
+        $swoole_tag = 'v6.2.0';
     }
 
     $file = "swoole-{$swoole_tag}.tar.gz";
