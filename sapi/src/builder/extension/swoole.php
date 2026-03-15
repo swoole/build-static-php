@@ -71,7 +71,7 @@ return function (Preprocessor $p) {
             ->withLicense('https://github.com/swoole/swoole-src/blob/master/LICENSE', Extension::LICENSE_APACHE2)
             ->withManual('https://wiki.swoole.com/#/')
             //->withAutoUpdateFile()
-            //->withFile($file)
+            ->withFile($file)
             //->withPeclVersion('6.1.6')
             //->withPieName('swoole/swoole')
             //->withPieVersion('v6.1.6')
