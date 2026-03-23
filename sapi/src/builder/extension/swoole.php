@@ -23,8 +23,8 @@ return function (Preprocessor $p) {
     //call_user_func_array([$ext, 'withDependentExtensions'], $dependentExtensions);
 
     $libiconv_prefix = ICONV_PREFIX;
-
-    $dependentLibraries = ['curl', 'openssl', 'cares', 'zlib', 'brotli', 'nghttp2', 'sqlite3', 'unix_odbc', 'pgsql', 'libzstd'];
+    $libssh2_prefix = LIBSSH2_PREFIX;
+    $dependentLibraries = ['curl', 'openssl', 'cares', 'zlib', 'brotli', 'nghttp2', 'sqlite3', 'unix_odbc', 'pgsql', 'libzstd', 'libssh2'];
     $dependentExtensions = ['curl', 'openssl', 'sockets', 'mysqlnd', 'pdo'];
 
     $options[] = '--enable-swoole';
@@ -41,6 +41,8 @@ return function (Preprocessor $p) {
     $options[] = '--enable-brotli';
     $options[] = '--enable-zstd';
     $options[] = '--enable-swoole-stdext';
+    $options[] = '--with-swoole-ssh2=' . $libssh2_prefix;
+    $options[] = '--enable-swoole-ftp';
 
     $options[] = '--enable-zts';
     $options[] = '--disable-opcache-jit';
@@ -54,24 +56,24 @@ return function (Preprocessor $p) {
 
     $p->addExtension(
         (new Extension('swoole'))
-        ->withHomePage('https://github.com/swoole/swoole-src')
-        ->withLicense('https://github.com/swoole/swoole-src/blob/master/LICENSE', Extension::LICENSE_APACHE2)
-        ->withManual('https://wiki.swoole.com/#/')
-        //->withAutoUpdateFile()
-        //->withFile($file)
-        //->withPeclVersion('6.1.6')
-        //->withPieName('swoole/swoole')
-        //->withPieVersion('v6.1.6')
-        ->withDownloadScript(
-            'swoole-src',
-            <<<EOF
+            ->withHomePage('https://github.com/swoole/swoole-src')
+            ->withLicense('https://github.com/swoole/swoole-src/blob/master/LICENSE', Extension::LICENSE_APACHE2)
+            ->withManual('https://wiki.swoole.com/#/')
+            //->withAutoUpdateFile()
+            //->withFile($file)
+            //->withPeclVersion('6.1.6')
+            //->withPieName('swoole/swoole')
+            //->withPieVersion('v6.1.6')
+            ->withDownloadScript(
+                'swoole-src',
+                <<<EOF
             git clone -b {$swoole_tag} --depth=1 https://github.com/swoole/swoole-src.git
 EOF
-        )
-        ->withOptions(implode(' ', $options))
-        ->withBuildCached(false)
-        ->withDependentLibraries(...$dependentLibraries)
-        ->withDependentExtensions(...$dependentExtensions)
+            )
+            ->withOptions(implode(' ', $options))
+            ->withBuildCached(false)
+            ->withDependentLibraries(...$dependentLibraries)
+            ->withDependentExtensions(...$dependentExtensions)
     );
 
     if ($p->isMacos()) {
