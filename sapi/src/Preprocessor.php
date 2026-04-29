@@ -469,7 +469,7 @@ __GIT_PROXY_CONFIG_EOF;
      * @param string $httpProxyConfig
      * @return void
      */
-    public function downloadFileWithPie(?object $project = null, string $httpProxyConfig): void
+    public function downloadFileWithPie(?object $project = null, string $httpProxyConfig = ''): void
     {
         $pieName = $project->pieName;
         $pieVersion = $project->pieVersion;
@@ -509,7 +509,7 @@ EOF;
      * @param string $httpProxyConfig
      * @return void
      */
-    protected function downloadFileWithScript(?object $project = null, string $httpProxyConfig): void
+    protected function downloadFileWithScript(?object $project = null, string $httpProxyConfig = ''): void
     {
 
         if (!empty($project->downloadScript) && !empty($project->downloadDirName)) {
