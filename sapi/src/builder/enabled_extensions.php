@@ -43,7 +43,7 @@ return [
     'ds',
 #    'ssh2',
     'pgsql',
-    'xlswriter',
+#    'xlswriter',
     'gettext',
 #    'phpy'
 ];
