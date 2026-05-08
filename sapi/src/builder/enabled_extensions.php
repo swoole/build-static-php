@@ -42,7 +42,7 @@ return [
     'uuid',
     'apcu',
     'ds',
-    'ssh2',
+#    'ssh2',
     'pgsql',
     'pdo_pgsql',
     'xlswriter',
