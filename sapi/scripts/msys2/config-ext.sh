@@ -11,9 +11,9 @@ __PROJECT__=$(
 )
 cd ${__PROJECT__}
 
-PHP_VERSION='8.2.29'
+PHP_VERSION='8.4.21'
 PHP_VERSION=$(awk 'NR==1' ${__PROJECT__}/sapi/PHP-VERSION.conf)
-X_PHP_VERSION='8.2'
+X_PHP_VERSION='8.4'
 SWOOLE_VERSION=$(awk 'NR==1{ print $1 }' "${__PROJECT__}/sapi/SWOOLE-VERSION.conf")
 
 while [ $# -gt 0 ]; do
@@ -36,7 +36,7 @@ if [ "${X_PHP_VERSION}" == "8.1" ]; then
   SWOOLE_VERSION="v6.1.6"
 fi
 if [ "${X_PHP_VERSION}" == "8.5" ]; then
-  SWOOLE_VERSION="master"
+  SWOOLE_VERSION="v6.2.0"
 fi
 
 REDIS_VERSION=6.3.0
