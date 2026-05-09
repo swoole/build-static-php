@@ -45,7 +45,6 @@ return [
 #    'ssh2',
     'pgsql',
     'pdo_pgsql',
-    'xlswriter',
 #    'xlswriter',
     'gettext',
 #    'phpy'
