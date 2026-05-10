@@ -48,9 +48,9 @@ case $ARCH in
   ;;
 esac
 
-APP_VERSION='v8.2.28'
+APP_VERSION='v8.4.21'
 APP_NAME='php-cli'
-VERSION='v1.9.2'
+VERSION='v1.16.0'
 
 cd ${__PROJECT__}
 mkdir -p runtime/

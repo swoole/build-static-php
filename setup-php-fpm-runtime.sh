@@ -48,9 +48,9 @@ case $ARCH in
   ;;
 esac
 
-APP_VERSION='v8.2.28'
+APP_VERSION='v8.4.21'
 APP_NAME='php-fpm'
-VERSION='php-fpm-v2.2.0'
+VERSION='php-fpm-v2.4.0'
 
 MIRROR=''
 while [ $# -gt 0 ]; do
