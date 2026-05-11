@@ -23,7 +23,7 @@ return function (Preprocessor $p) {
     $p->withExportVariable('PHP_MONGODB_ZLIB_CFLAGS', '$(pkg-config --cflags --static zlib)');
     $p->withExportVariable('PHP_MONGODB_ZLIB_LIBS', '$(pkg-config   --libs   --static zlib)');
 
-    $mongodb_version = '2.1.4'; //'1.19.4'
+    $mongodb_version = '2.3.1'; //'1.19.4'
 
     $options = [];
     $options[] = ' --enable-mongodb ';
