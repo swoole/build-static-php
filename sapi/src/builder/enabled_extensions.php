@@ -39,7 +39,6 @@ return [
     'mongodb',
     'gettext',
     'uuid',
-    'xlswriter',
-    'gettext',
+#    'xlswriter',
 #    'phpy'
 ];
