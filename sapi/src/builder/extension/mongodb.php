@@ -52,15 +52,15 @@ return function (Preprocessor $p) {
         ->withPieVersion($mongodb_version)
         ->withPieName('mongodb/mongodb-extension')
         //->withFileHash('md5', '91f96b24df7ed5651731671f55cb68a1')
-            /*
-        ->withFile("mongodb-{$mongodb_version}.tgz")
-        ->withDownloadScript(
-            'mongo-php-driver',
-            <<<EOF
-        git clone -b {$mongodb_version} --recursive https://github.com/mongodb/mongo-php-driver.git
+        /*
+    ->withFile("mongodb-{$mongodb_version}.tgz")
+    ->withDownloadScript(
+        'mongo-php-driver',
+        <<<EOF
+    git clone -b {$mongodb_version} --recursive https://github.com/mongodb/mongo-php-driver.git
 EOF
-        )
-            */
+    )
+        */
         //->withAutoUpdateFile()
         ->withBuildCached(false)
         ->withDependentLibraries(...$dependentLibraries);
