@@ -21,10 +21,9 @@ return function (Preprocessor $p) {
             //->withUrl('https://ftp.postgresql.org/pub/source/v16.3/postgresql-16.3.tar.gz')
             ->withUrl('https://ftp.postgresql.org/pub/source/v18.3/postgresql-18.3.tar.gz')
             ->withManual('https://www.postgresql.org/docs/current/install-procedure.html#CONFIGURE-OPTIONS#:~:text=Client-only%20installation')
-            //->withFileHash('md5', '8a58db4009e1a50106c5e1a8c4b03bed')
+            ->withFileHash('sha256', '9e054ffd6e013da2c2c9a1bfd6e062c98875d340df080516551c96b9b0926a59')
             ->withPrefix($pgsql_prefix)
             ->withBuildCached(false)
-            ->withInstallCached(false)
             ->withBuildScript(
                 <<<EOF
             # {$custom_env_start}

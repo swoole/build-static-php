@@ -51,7 +51,7 @@ return function (Preprocessor $p) {
         ->withPeclVersion($mongodb_version)
         //->withPieVersion($mongodb_version)
         //->withPieName('mongodb/mongodb-extension')
-        //->withFileHash('md5', '91f96b24df7ed5651731671f55cb68a1')
+        ->withFileHash('sha256', '2738972432d36c370fde3c76c208c31bd5a7a0afc4a7705874f92f322f3d2786')
         /*
     ->withFile("mongodb-{$mongodb_version}.tgz")
     ->withDownloadScript(
