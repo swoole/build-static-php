@@ -23,7 +23,7 @@ return function (Preprocessor $p) {
     $p->withExportVariable('PHP_MONGODB_ZLIB_CFLAGS', '$(pkg-config --cflags --static zlib)');
     $p->withExportVariable('PHP_MONGODB_ZLIB_LIBS', '$(pkg-config   --libs   --static zlib)');
 
-    $mongodb_version = '2.1.4'; //'1.19.4'
+    $mongodb_version = '2.3.1'; //'1.19.4'
 
     $options = [];
     $options[] = ' --enable-mongodb ';
@@ -49,16 +49,18 @@ return function (Preprocessor $p) {
         ->withHomePage('https://www.mongodb.com/docs/drivers/php/')
         ->withOptions(implode(' ', $options))
         ->withPeclVersion($mongodb_version)
-        //->withFileHash('md5', '91f96b24df7ed5651731671f55cb68a1')
-            /*
-        ->withFile("mongodb-{$mongodb_version}.tgz")
-        ->withDownloadScript(
-            'mongo-php-driver',
-            <<<EOF
-        git clone -b {$mongodb_version} --recursive https://github.com/mongodb/mongo-php-driver.git
+        //->withPieVersion($mongodb_version)
+        //->withPieName('mongodb/mongodb-extension')
+        ->withFileHash('sha256', '2738972432d36c370fde3c76c208c31bd5a7a0afc4a7705874f92f322f3d2786')
+        /*
+    ->withFile("mongodb-{$mongodb_version}.tgz")
+    ->withDownloadScript(
+        'mongo-php-driver',
+        <<<EOF
+    git clone -b {$mongodb_version} --recursive https://github.com/mongodb/mongo-php-driver.git
 EOF
-        )
-            */
+    )
+        */
         //->withAutoUpdateFile()
         ->withBuildCached(false)
         ->withDependentLibraries(...$dependentLibraries);
