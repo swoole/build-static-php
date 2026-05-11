@@ -48,7 +48,9 @@ return function (Preprocessor $p) {
     $ext->withManual('https://www.php.net/mongodb')
         ->withHomePage('https://www.mongodb.com/docs/drivers/php/')
         ->withOptions(implode(' ', $options))
-        ->withPeclVersion($mongodb_version)
+        //->withPeclVersion($mongodb_version)
+        ->withPieVersion($mongodb_version)
+        ->withPieName('mongodb/mongodb-extension')
         //->withFileHash('md5', '91f96b24df7ed5651731671f55cb68a1')
             /*
         ->withFile("mongodb-{$mongodb_version}.tgz")
