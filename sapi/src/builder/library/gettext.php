@@ -63,7 +63,7 @@ return function (Preprocessor $p) {
             --without-git \
             --without-xz \
             --disable-examples \
-            --disable-tests
+            --disable-tests \
             {$options} \
 
 EOF
