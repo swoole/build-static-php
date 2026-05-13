@@ -283,6 +283,7 @@ filter_extension() {
     test -d session    && cp -rf session $PHP_SRC_EXT_DIR
     test -d random     && cp -rf random $PHP_SRC_EXT_DIR
     test -d phar       && cp -rf phar $PHP_SRC_EXT_DIR
+    test -d uri        && cp -rf uri $PHP_SRC_EXT_DIR
 <?php foreach ($this->extensionList as $value) : ?>
     test -d <?= $value->name ?> && cp -rf <?= $value->name ?> $PHP_SRC_EXT_DIR
 <?php endforeach; ?>
