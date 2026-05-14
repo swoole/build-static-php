@@ -23,6 +23,7 @@ return function (Preprocessor $p) {
             ->withManual('https://www.postgresql.org/docs/current/install-procedure.html#CONFIGURE-OPTIONS#:~:text=Client-only%20installation')
             ->withFileHash('md5', '8a58db4009e1a50106c5e1a8c4b03bed')
             ->withPrefix($pgsql_prefix)
+            ->withBuildCached(false)
             ->withBuildScript(
                 <<<EOF
             {$custom_env_start}
