@@ -59,6 +59,7 @@ curl -fSL https://github.com/swoole/build-static-php/blob/main/setup-php-cli-run
 
 ```shell
 
+
 git clone -b main https://github.com/swoole/build-static-php.git
 
 # 或者
