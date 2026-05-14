@@ -18,7 +18,7 @@ return function (Preprocessor $p) {
             ->withLicense('https://www.postgresql.org/about/licence/', Library::LICENSE_SPEC)
             ->withUrl('https://ftp.postgresql.org/pub/source/v16.3/postgresql-16.3.tar.gz')
             ->withManual('https://www.postgresql.org/docs/current/install-procedure.html#CONFIGURE-OPTIONS#:~:text=Client-only%20installation')
-            //->withFileHash('sha256', '9e054ffd6e013da2c2c9a1bfd6e062c98875d340df080516551c96b9b0926a59')
+            ->withFileHash('sha256', 'bd3798c399bc1b6d08b94340f9dd7a75a30a7fa076788ef2f4848be2be6a5fc5')
             ->withPrefix($pgsql_prefix)
             ->withBuildCached(false)
             ->withBuildScript(
