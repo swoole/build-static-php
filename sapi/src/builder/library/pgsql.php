@@ -35,7 +35,6 @@ return function (Preprocessor $p) {
             sed -i.backup "402 s/^/# /"  ../src/Makefile.shlib
 
             PACKAGES="libssl libcrypto openssl zlib icu-uc icu-io icu-i18n readline libxml-2.0  libxslt libzstd liblz4"
-            CFLAGS="-DUSE_PRIVATE_ENCODING_FUNCS" \
             CPPFLAGS="$(pkg-config  --cflags-only-I --static \$PACKAGES )" \
             LDFLAGS="$(pkg-config   --libs-only-L   --static \$PACKAGES ) {$ldflags} " \
             LIBS="$(pkg-config      --libs-only-l   --static \$PACKAGES ) {$libs}  " \
