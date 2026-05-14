@@ -16,9 +16,10 @@ return function (Preprocessor $p) {
         (new Library('pgsql'))
             ->withHomePage('https://www.postgresql.org/')
             ->withLicense('https://www.postgresql.org/about/licence/', Library::LICENSE_SPEC)
-            ->withUrl('https://ftp.postgresql.org/pub/source/v16.3/postgresql-16.3.tar.gz')
+            //->withUrl('https://ftp.postgresql.org/pub/source/v16.3/postgresql-16.3.tar.gz')
+            ->withUrl('https://ftp.postgresql.org/pub/source/v17.9/postgresql-17.9.tar.gz')
             ->withManual('https://www.postgresql.org/docs/current/install-procedure.html#CONFIGURE-OPTIONS#:~:text=Client-only%20installation')
-            ->withFileHash('sha256', 'bd3798c399bc1b6d08b94340f9dd7a75a30a7fa076788ef2f4848be2be6a5fc5')
+            //->withFileHash('sha256', 'bd3798c399bc1b6d08b94340f9dd7a75a30a7fa076788ef2f4848be2be6a5fc5')
             ->withPrefix($pgsql_prefix)
             ->withBuildCached(false)
             ->withBuildScript(
@@ -31,10 +32,12 @@ return function (Preprocessor $p) {
 
             sed -i.backup "s/invokes exit\'; exit 1;/invokes exit\';/"  ../src/interfaces/libpq/Makefile
 
-            sed -i.backup '/\$(LINK.shared) -o \$@ \$(OBJS) \$(LDFLAGS) \$(LDFLAGS_SL) \$(SHLIB_LINK)/s/^/# /'        ../src/Makefile.shlib
-            sed -i.backup "402 s/^/# /"  ../src/Makefile.shlib
+            sed -i.backup '/install-lib: install-lib-shared/s/^/# /'        ../src/Makefile.shlib
+            sed -i.backup '/\$(COMPILER) -dynamiclib -install_name/s/^/#/' ../src/Makefile.shlib
 
+            # CFLAGS="-DUSE_PRIVATE_ENCODING_FUNCS" \
             PACKAGES="libssl libcrypto openssl zlib icu-uc icu-io icu-i18n readline libxml-2.0  libxslt libzstd liblz4"
+
             CPPFLAGS="$(pkg-config  --cflags-only-I --static \$PACKAGES )" \
             LDFLAGS="$(pkg-config   --libs-only-L   --static \$PACKAGES ) {$ldflags} " \
             LIBS="$(pkg-config      --libs-only-l   --static \$PACKAGES ) {$libs}  " \
