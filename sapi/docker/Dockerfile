@@ -19,4 +19,6 @@ RUN apk add libc++-static libltdl-static
 RUN apk add python3
 # Compiling AOM requires the use of NASM/YASM assembly compiler
 RUN apk add nasm
+# Compiling dav1d requires the use of Meson and Ninja tools
+RUN apk add meson ninja
 WORKDIR /work
