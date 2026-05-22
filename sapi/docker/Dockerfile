@@ -15,4 +15,8 @@ RUN apk upgrade
 RUN apk add vim alpine-sdk xz autoconf automake linux-headers clang-dev clang lld libtool cmake bison re2c gettext coreutils
 RUN apk add bash tini
 RUN apk add libc++-static libltdl-static
+# Compiling libpsl requires using python3 to generate data files
+RUN apk add python3
+# Compiling AOM requires the use of NASM/YASM assembly compiler
+RUN apk add nasm
 WORKDIR /work
