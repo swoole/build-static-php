@@ -36,8 +36,6 @@ if ($p->getInputOption('without-docker') || ($p->isMacos()) || ($p->isLinux() &&
     $p->setBuildDir(__DIR__ . '/thirdparty');
 }
 
-$p->setRootDir(__DIR__);
-
 if ($p->getInputOption('with-global-prefix')) {
     $p->setGlobalPrefix($p->getInputOption('with-global-prefix'));
 }
