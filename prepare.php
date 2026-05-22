@@ -31,10 +31,12 @@ if (!is_dir(__DIR__ . '/ext/swoole')) {
 }
 
 // Compile directly on the host machine, not in the docker container
-if ($p->getInputOption('without-docker') || ($p->isMacos()) || ($p->isLinux() && is_file('/.dockerenv'))) {
+if ($p->getInputOption('without-docker') || ($p->isMacos()) || ($p->isLinux() && (!is_file('/.dockerenv')))) {
     $p->setWorkDir(__DIR__);
     $p->setBuildDir(__DIR__ . '/thirdparty');
 }
+
+$p->setRootDir(__DIR__);
 
 if ($p->getInputOption('with-global-prefix')) {
     $p->setGlobalPrefix($p->getInputOption('with-global-prefix'));
