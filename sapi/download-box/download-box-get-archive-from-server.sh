@@ -17,21 +17,23 @@ mkdir -p pool/ext
 test -d ${__PROJECT__}/var/download-box/ || mkdir -p ${__PROJECT__}/var/download-box/
 
 cd ${__PROJECT__}/var/download-box/
-SWOOLE_CLI_RELEASE_VERSION="v6.1.1.1"
-ALL_DEPS_HASH="39983e8b050bfc31265b6c385220026d58ebb04f72cba3ff9f461c97b546e25a"
+SWOOLE_CLI_RELEASE_VERSION="v6.2.0.0"
+ALL_DEPS_HASH=""
 
 DOMAIN="https://github.com/swoole/swoole-cli/releases/download/${SWOOLE_CLI_RELEASE_VERSION}/"
 
 # show sha256sum
 # curl -fSL https://github.com/swoole/swoole-cli/releases/download/v6.1.1.1/all-deps.zip.sha256sum && echo
+# curl -fSL https://storage.swoole.com/dist/all-deps.zip.sha256sum && echo
 # download command
 # curl -fSLo all-deps.zip https://github.com/swoole/swoole-cli/releases/download/v6.1.1.1/all-deps.zip
+# curl -fSLo all-deps.zip https://storage.swoole.com/dist/all-deps.zip
 
 while [ $# -gt 0 ]; do
   case "$1" in
   --mirror)
     if [ "$2" = 'china' ]; then
-      DOMAIN='https://swoole-cli.jingjingxyk.com/'
+      DOMAIN='https://storage.swoole.com/dist/'
     fi
     ;;
   --proxy)
@@ -57,6 +59,9 @@ while [ $# -gt 0 ]; do
 done
 
 URL="${DOMAIN}/all-deps.zip"
+HASH_CODE_URL="${DOMAIN}/all-deps.zip.sha256sum "
+
+ALL_DEPS_HASH=$(curl -fSL ${HASH_CODE_URL} && echo)
 
 test -f all-deps.zip || curl -fSLo all-deps.zip ${URL}
 
