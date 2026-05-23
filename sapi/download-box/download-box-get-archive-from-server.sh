@@ -70,8 +70,9 @@ HASH=$(sha256sum all-deps.zip | awk '{print $1}')
 
 # 签名验证失败，删除下载文件
 if [ ${HASH} != ${ALL_DEPS_HASH} ]; then
+  set +x
   echo 'Hash signature is invalid ！'
-  echo 'Please pull the latest code !'
+  echo 'Download keeps failing. Please pull the latest code !'
   rm -f all-deps.zip
   exit 0
 fi
@@ -82,5 +83,5 @@ cd ${__PROJECT__}/
 
 awk 'BEGIN { cmd="cp -ri var/download-box/lib/* pool/lib"  ; print "n" |cmd; }'
 awk 'BEGIN { cmd="cp -ri var/download-box/ext/* pool/ext"; print "n" |cmd; }'
-
+set +x
 echo "download all-archive.zip ok ！"
