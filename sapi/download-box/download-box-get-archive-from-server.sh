@@ -70,7 +70,8 @@ HASH=$(sha256sum all-deps.zip | awk '{print $1}')
 
 # 签名验证失败，删除下载文件
 if [ ${HASH} != ${ALL_DEPS_HASH} ]; then
-  echo 'hash signature is invalid ！'
+  echo 'Hash signature is invalid ！'
+  echo 'Please pull the latest code !'
   rm -f all-deps.zip
   exit 0
 fi
