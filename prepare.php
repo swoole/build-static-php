@@ -9,7 +9,7 @@ use SwooleCli\Library;
 $homeDir = getenv('HOME');
 $p = Preprocessor::getInstance();
 $p->parseArguments($argc, $argv);
-
+$p->setRootDir(__DIR__);
 $buildType = $p->getBuildType();
 if ($p->getInputOption('with-build-type')) {
     $buildType = $p->getInputOption('with-build-type');
@@ -92,7 +92,6 @@ echo PHP_EOL;
 if ($p->getInputOption('without-docker') || ($p->isMacos()) || ($p->isLinux() && (!is_file('/.dockerenv')))) {
     $p->setWorkDir(__DIR__);
     $p->setBuildDir(__DIR__ . '/thirdparty');
-    $p->setRootDir(__DIR__);
 }
 
 /*
