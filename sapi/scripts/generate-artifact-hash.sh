@@ -37,19 +37,6 @@ case $OS in
   ;;
 esac
 
-case $ARCH in
-'x86_64')
-  ARCH="x64"
-  ;;
-'aarch64' | 'arm64')
-  ARCH="arm64"
-  ;;
-*)
-  echo '暂未配置的 ARCH '
-  exit 0
-  ;;
-esac
-
 APP_VERSION='v8.3.19'
 APP_NAME='php-cli'
 VERSION='v1.9.2'
