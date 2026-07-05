@@ -92,6 +92,7 @@ echo PHP_EOL;
 if ($p->getInputOption('without-docker') || ($p->isMacos()) || ($p->isLinux() && (!is_file('/.dockerenv')))) {
     $p->setWorkDir(__DIR__);
     $p->setBuildDir(__DIR__ . '/thirdparty');
+    $p->setRootDir(__DIR__);
 }
 
 /*
