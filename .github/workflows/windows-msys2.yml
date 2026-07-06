@@ -71,7 +71,6 @@ jobs:
         run: |
           bash sapi/download-box/download-box-get-archive-from-server.sh
           bash ./sapi/scripts/msys2/install-deps-lib.sh
-          bash sapi/download-box/download-box-get-archive-from-server.sh
 
       - name: Prepare
         shell: msys2 {0}
