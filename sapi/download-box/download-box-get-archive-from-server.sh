@@ -32,8 +32,7 @@ DOMAIN="https://github.com/swoole/swoole-cli/releases/download/${SWOOLE_CLI_RELE
 if [ ! -f "${__PROJECT__}/sync-source-code.php" ]; then
   # show sha256sum
   # curl -fSL https://github.com/swoole/build-static-php/releases/download/v1.15.0/all-deps.zip.sha256sum && echo
-  DOMAIN='https://github.com/swoole/build-static-php/releases/download/v1.15.0/'
-  ALL_DEPS_HASH="9d216a02aec50d67e1ee770cb02fcfca3d40b2f0c15a5f11ce7900cb0dce6999"
+  DOMAIN='https://github.com/swoole/build-static-php/releases/download/v1.18.0/'
 fi
 
 DOWNLOAD_ARCHIVE=0
@@ -42,9 +41,6 @@ while [ $# -gt 0 ]; do
   --mirror)
     if [ "$2" = 'china' ]; then
       DOMAIN='https://swoole-cli.jingjingxyk.com/'
-      if [ ! -f "${__PROJECT__}/sync-source-code.php" ]; then
-        DOMAIN='https://storage.swoole.com/dist/'
-      fi
     fi
     ;;
   --download-archive)
