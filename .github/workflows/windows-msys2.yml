@@ -5,7 +5,7 @@ on:
   pull_request:
 
 env:
-  BUILD_PHP_VERSION: 8.4.21
+  BUILD_PHP_VERSION: 8.4.23
 
 jobs:
   windows-msys2:
