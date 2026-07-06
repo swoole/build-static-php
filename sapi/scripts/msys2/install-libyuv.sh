@@ -34,7 +34,8 @@ build() {
     -DCMAKE_INSTALL_PREFIX=/usr/ \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_SIZEOF_VOID_P=8 \
-    -DCMAKE_VERBOSE_MAKEFILE=ON
+    -DCMAKE_VERBOSE_MAKEFILE=ON \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
   make -j $(nproc)
   make install
