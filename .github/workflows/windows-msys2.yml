@@ -5,7 +5,7 @@ on:
   pull_request:
 
 env:
-  BUILD_PHP_VERSION: 8.4.21
+  BUILD_PHP_VERSION: 8.4.23
 
 jobs:
   windows-msys2:
@@ -14,11 +14,11 @@ jobs:
     strategy:
       matrix:
         php-version:
-          - "8.2.31"
+          - "8.2.32"
           # - "8.1.34"
-          - "8.3.31"
-          - "8.4.21"
-          - "8.5.6"
+          - "8.3.32"
+          - "8.4.23"
+          - "8.5.8"
     steps:
       - name: Show Environment Info
         shell: cmd
@@ -64,14 +64,12 @@ jobs:
         shell: msys2 {0}
         run: |
           bash sapi/quickstart/windows/msys2-build/install-msys2.sh
-          bash sapi/download-box/download-box-get-archive-from-server.sh
 
       - name: install deps lib with source code
         shell: msys2 {0}
         run: |
           bash sapi/download-box/download-box-get-archive-from-server.sh
           bash ./sapi/scripts/msys2/install-deps-lib.sh
-          bash sapi/download-box/download-box-get-archive-from-server.sh
 
       - name: Prepare
         shell: msys2 {0}

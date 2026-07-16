@@ -9,7 +9,7 @@ use SwooleCli\Library;
 $homeDir = getenv('HOME');
 $p = Preprocessor::getInstance();
 $p->parseArguments($argc, $argv);
-
+$p->setRootDir(__DIR__);
 $buildType = $p->getBuildType();
 if ($p->getInputOption('with-build-type')) {
     $buildType = $p->getInputOption('with-build-type');
@@ -30,10 +30,11 @@ $p->cleanFile(__DIR__ . '/libs.log');
 $p->cleanFile(__DIR__ . '/configure.backup');
 
 
+
 # PHP 默认版本
-$php_version = '8.4.21';
-$php_version_id = '804021';
-$php_version_tag = 'php-8.4.21';
+$php_version = '8.4.23';
+$php_version_id = '804023';
+$php_version_tag = 'php-8.4.23';
 
 if ($p->getInputOption('with-php-version')) {
     $subject = $p->getInputOption('with-php-version');
@@ -86,15 +87,6 @@ echo "PHP_VERSION_TAG: " . BUILD_PHP_VERSION_TAG . PHP_EOL;
 echo "CUSTOM_PHP_VERSION_ID: " . BUILD_CUSTOM_PHP_VERSION_ID . PHP_EOL;
 echo PHP_EOL;
 
-// Sync code from php-src
-$p->setPhpSrcDir($p->getWorkDir() . '/var/php-' . BUILD_PHP_VERSION);
-
-/*
-// Download swoole-src
-if (!is_dir(__DIR__ . '/ext/swoole')) {
-    //shell_exec(__DIR__ . '/sapi/scripts/download-swoole-src-archive.sh');
-}
-*/
 
 // Compile directly on the host machine, not in the docker container
 if ($p->getInputOption('without-docker') || ($p->isMacos()) || ($p->isLinux() && (!is_file('/.dockerenv')))) {
@@ -102,7 +94,12 @@ if ($p->getInputOption('without-docker') || ($p->isMacos()) || ($p->isLinux() &&
     $p->setBuildDir(__DIR__ . '/thirdparty');
 }
 
-$p->setRootDir(__DIR__);
+/*
+// Download swoole-src
+if (!is_dir(__DIR__ . '/ext/swoole')) {
+    //shell_exec('bash ' . __DIR__ . '/sapi/scripts/download-swoole-src-archive.sh');
+}
+*/
 
 //设置 PHP 源码所在目录 (构建时将进入此目录进行构建)
 if ($p->getInputOption('with-php-src')) {
@@ -113,6 +110,7 @@ if ($p->getInputOption('with-php-src')) {
 
 //设置PHP 安装目录
 define("BUILD_PHP_INSTALL_PREFIX", $p->getRootDir() . '/bin/php-' . BUILD_PHP_VERSION);
+
 
 if ($p->getInputOption('with-override-default-enabled-ext')) {
     $p->setExtEnabled([]);
@@ -156,7 +154,6 @@ NO_PROXY="${NO_PROXY},deb.debian.org,security.debian.org"
 NO_PROXY="${NO_PROXY},archive.ubuntu.com,security.ubuntu.com"
 NO_PROXY="${NO_PROXY},pypi.python.org,bootstrap.pypa.io"
 export NO_PROXY="${NO_PROXY},localhost"
-
 
 EOF;
     $p->setProxyConfig($proxyConfig, $http_proxy);

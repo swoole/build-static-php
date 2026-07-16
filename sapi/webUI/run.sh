@@ -12,7 +12,7 @@ __PROJECT__=$(
 cd ${__DIR__}
 
 shopt -s expand_aliases
-export PATH="${__PROJECT__}/bin/runtime:$PATH"
-alias php="php -d curl.cainfo=${__PROJECT__}/bin/runtime/cacert.pem -d openssl.cafile=${__PROJECT__}/bin/runtime/cacert.pem"
+export PATH="${__PROJECT__}/runtime/php/:$PATH"
+alias php="php -d curl.cainfo=${__PROJECT__}/runtime/php/cacert.pem -d openssl.cafile=${__PROJECT__}/runtime/php/cacert.pem"
 
 php bootstrap.php

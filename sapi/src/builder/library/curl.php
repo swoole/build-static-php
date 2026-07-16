@@ -7,6 +7,7 @@ return function (Preprocessor $p) {
     $curl_prefix = CURL_PREFIX;
     $zlib_prefix = ZLIB_PREFIX;
     $cares_prefix = CARES_PREFIX;
+    $openssl_prefix = OPENSSL_PREFIX;
     # HTTP3 (and QUIC)
     # https://github.com/curl/curl/blob/master/docs/HTTP3.md#openssl-version
     $p->addLibrary(

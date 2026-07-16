@@ -6,10 +6,11 @@ __DIR__=$(
   pwd
 )
 __PROJECT__=$(
-  cd "${__DIR__}/"
+  cd "${__DIR__}/../../"
   pwd
 )
 
+shopt -s expand_aliases
 cd ${__PROJECT__}
 
 OS=$(uname -s)
@@ -51,23 +52,28 @@ case $ARCH in
   ;;
 esac
 
-APP_VERSION='v20.15.1'
+APP_VERSION='v24.16.0'
 APP_NAME='node'
-VERSION='v20.15.1'
+VERSION='v24.16.0'
 
-mkdir -p bin/runtime
+cd ${__PROJECT__}
+mkdir -p runtime/
 mkdir -p var/runtime
+APP_RUNTIME_DIR=${__PROJECT__}/runtime/${APP_NAME}
+mkdir -p ${APP_RUNTIME_DIR}
 
 cd ${__PROJECT__}/var/runtime
 
 : <<'EOF'
-https://nodejs.org/dist/v20.15.1/node-v20.15.1-darwin-x64.tar.gz
-https://nodejs.org/dist/v20.15.1/node-v20.15.1-darwin-arm64.tar.gz
-https://nodejs.org/dist/v20.15.1/node-v20.15.1-linux-arm64.tar.xz
-https://nodejs.org/dist/v20.15.1/node-v20.15.1-linux-arm64.tar.xz
-https://nodejs.org/dist/v20.15.1/node-v20.15.1-win-arm64.zip
-https://nodejs.org/dist/v20.15.1/node-v20.15.1-win-x64.zip
-https://registry.npmmirror.com/-/binary/node/v20.15.1/node-v20.15.1-win-x64.zip
+https://nodejs.org/
+https://nodejs.org/dist/v24.16.0/node-v24.16.0-darwin-x64.tar.gz
+https://nodejs.org/dist/v24.16.0/node-v24.16.0-darwin-x64.tar.gz
+https://nodejs.org/dist/v24.16.0/node-v24.16.0-darwin-arm64.tar.gz
+https://nodejs.org/dist/v24.16.0/node-v24.16.0-linux-arm64.tar.xz
+https://nodejs.org/dist/v24.16.0/node-v24.16.0-linux-arm64.tar.xz
+https://nodejs.org/dist/v24.16.0/node-v24.16.0-win-arm64.zip
+https://nodejs.org/dist/v24.16.0/node-v24.16.0-win-x64.zip
+https://registry.npmmirror.com/-/binary/node/v24.16.0/node-v24.16.0-win-x64.zip
 EOF
 
 APP_DOWNLOAD_URL="https://nodejs.org/dist/${VERSION}/${APP_NAME}-${APP_VERSION}-${OS}-${ARCH}.tar.xz"
@@ -125,8 +131,8 @@ else
     test -f ${APP_RUNTIME}.tar || xz -d -k ${APP_RUNTIME}.tar.xz
     test -d ${APP_RUNTIME} || tar -xvf ${APP_RUNTIME}.tar
   fi
-  test -d ${__PROJECT__}/bin/runtime/node && rm -rf ${__PROJECT__}/bin/runtime/node
-  mv ${APP_RUNTIME} ${__PROJECT__}/bin/runtime/node
+  test -d ${APP_RUNTIME_DIR} && rm -rf ${APP_RUNTIME_DIR}
+  mv ${APP_RUNTIME} ${APP_RUNTIME_DIR}
 fi
 
 cd ${__PROJECT__}/
@@ -136,33 +142,38 @@ set +x
 echo " "
 echo " USE PHP RUNTIME :"
 echo " "
-echo " export PATH=\"${__PROJECT__}/bin/runtime/node/bin/:\$PATH\" "
+echo " export PATH=\"${APP_RUNTIME_DIR}/bin/:\$PATH\" "
 echo " "
-export PATH="${__PROJECT__}/bin/runtime/node/bin/:$PATH"
+
+cd ${__PROJECT__}
+export PATH="${APP_RUNTIME_DIR}/bin/:$PATH"
 node -v
+npm config get prefix
+npm list -g --depth=0
 npm -v
 npx -v
 
-
-
 # shellcheck disable=SC2217
-echo <<'EOF'
+: <<'EOF'
+
+npm install pnpm --registry=https://registry.npmmirror.com
+pnpm -v
+which pnpm
+
+node -e "require('corepack')" # 无报错则正常
+corepack --version            # 输出版本号
+corepack enable pnpm
+
+# corepack enable
+npm doctor
 
 # 指定 NPM 仓库下载源
 
-npm install -g yarn --registry=https://registry.npmmirror.com
+npm install -g pnpm --registry=https://registry.npmmirror.com
 
-npm install  yarn --registry=https://registry.npmmirror.com
-
-yarn install --registry=https://registry.npmmirror.com
-
-npx yarn install --registry=https://registry.npmmirror.com
-
+npm install  pnpm --registry=https://registry.npmmirror.com
 
 npm config  set registry https://registry.npmmirror.com
-
-yarn config set registry https://registry.npmmirror.com
-
 
 # electron 反编译
 npm install asar  --registry=https://registry.npmmirror.com
@@ -172,4 +183,3 @@ npx asar extract app.asar app.asar.unpacked
 ls -lha app.asar.unpacked
 
 EOF
-

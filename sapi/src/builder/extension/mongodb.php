@@ -49,9 +49,9 @@ return function (Preprocessor $p) {
         ->withHomePage('https://www.mongodb.com/docs/drivers/php/')
         ->withOptions(implode(' ', $options))
         ->withPeclVersion($mongodb_version)
+        ->withFileHash('sha256', '2738972432d36c370fde3c76c208c31bd5a7a0afc4a7705874f92f322f3d2786')
         //->withPieVersion($mongodb_version)
         //->withPieName('mongodb/mongodb-extension')
-        ->withFileHash('sha256', '2738972432d36c370fde3c76c208c31bd5a7a0afc4a7705874f92f322f3d2786')
         /*
     ->withFile("mongodb-{$mongodb_version}.tgz")
     ->withDownloadScript(

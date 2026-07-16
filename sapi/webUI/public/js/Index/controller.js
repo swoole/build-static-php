@@ -12,7 +12,8 @@ const generateOpiton = (e) => {
     const with_dependecny_graph = document.querySelector('select[name="with-dependency-graph"]')
     const with_web_ui = document.querySelector('select[name="with-web-ui"]')
     const with_swoole_pgsql = document.querySelector('select[name="with-swoole-pgsql"]')
-    let cmd = 'php prepare.php'
+    let cmd = 'bash setup-php-runtime.sh \n' ;
+    cmd += 'php prepare.php'
 
     if (os.value === 'macos') {
         cmd += ' @os=' + os.value

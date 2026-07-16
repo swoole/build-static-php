@@ -14,7 +14,7 @@ mkdir -p pool/lib/
 WORK_TEMP_DIR=${__PROJECT__}/var/msys2-build/
 mkdir -p ${WORK_TEMP_DIR}
 
-VERSION=068c9f2f643ce59eeb3001d61374bf44a2abd825
+VERSION=b0f72309c6c0b952d0198be5a5b5106f089fe1c5
 
 download() {
   curl -fSLo ${__PROJECT__}/pool/lib/libyuv-${VERSION}.tar.gz https://chromium.googlesource.com/libyuv/libyuv/+archive/${VERSION}.tar.gz
@@ -34,7 +34,8 @@ build() {
     -DCMAKE_INSTALL_PREFIX=/usr/ \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_SIZEOF_VOID_P=8 \
-    -DCMAKE_VERBOSE_MAKEFILE=ON
+    -DCMAKE_VERBOSE_MAKEFILE=ON \
+    -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
   make -j $(nproc)
   make install

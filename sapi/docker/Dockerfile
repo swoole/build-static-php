@@ -19,4 +19,11 @@ RUN apk add bash tini
 RUN apk add libc++-static libltdl-static
 RUN apk add gettext gettext-dev
 RUN apk add pigz parallel
+RUN apk add gettext-dev
+# Compiling libpsl requires using python3 to generate data files
+RUN apk add python3
+# Compiling AOM requires the use of NASM/YASM assembly compiler
+RUN apk add nasm
+# Compiling dav1d requires the use of Meson and Ninja tools
+RUN apk add meson ninja
 WORKDIR /work

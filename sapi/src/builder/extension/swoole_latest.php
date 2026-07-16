@@ -14,8 +14,9 @@ return function (Preprocessor $p) {
         $options[] = ' --enable-swoole-coro-time  ';
     }
 
-    $dependentLibraries = ['curl', 'openssl', 'cares', 'zlib', 'brotli', 'nghttp2', 'sqlite3', 'unix_odbc', 'pgsql', 'libzstd'];
-
+    $libiconv_prefix = ICONV_PREFIX;
+    $libssh2_prefix = LIBSSH2_PREFIX;
+    $dependentLibraries = ['curl', 'openssl', 'cares', 'zlib', 'brotli', 'nghttp2', 'sqlite3', 'unix_odbc', 'pgsql', 'libzstd', 'libssh2'];
     $dependentExtensions = ['curl', 'openssl', 'sockets', 'mysqlnd', 'pdo'];
 
     $options[] = '--enable-swoole';
@@ -32,6 +33,8 @@ return function (Preprocessor $p) {
     $options[] = '--enable-brotli';
     $options[] = '--enable-zstd';
     $options[] = '--enable-swoole-stdext';
+    $options[] = '--with-swoole-ssh2=' . $libssh2_prefix;
+    $options[] = '--enable-swoole-ftp';
 
     $options[] = '--enable-zts';
     $options[] = '--disable-opcache-jit';
@@ -45,23 +48,23 @@ return function (Preprocessor $p) {
 
     $p->addExtension(
         (new Extension('swoole_latest'))
-        ->withAliasName('swoole')
-        ->withHomePage('https://github.com/swoole/swoole-src')
-        ->withLicense('https://github.com/swoole/swoole-src/blob/master/LICENSE', Extension::LICENSE_APACHE2)
-        ->withManual('https://wiki.swoole.com/#/')
-        ->withFile($file)
-        ->withDownloadScript(
-            'swoole-src',
-            <<<EOF
+            ->withAliasName('swoole')
+            ->withHomePage('https://github.com/swoole/swoole-src')
+            ->withLicense('https://github.com/swoole/swoole-src/blob/master/LICENSE', Extension::LICENSE_APACHE2)
+            ->withManual('https://wiki.swoole.com/#/')
+            ->withFile($file)
+            ->withDownloadScript(
+                'swoole-src',
+                <<<EOF
             git clone -b $swoole_tag --depth=1 https://github.com/swoole/swoole-src.git
 EOF
-        )
-        ->withAutoUpdateFile()
-        ->withOptions(implode(' ', $options))
-        ->withBuildCached(false)
-        ->withAutoUpdateFile()
-        ->withDependentLibraries(...$dependentLibraries)
-        ->withDependentExtensions(...$dependentExtensions)
+            )
+            ->withAutoUpdateFile()
+            ->withOptions(implode(' ', $options))
+            ->withBuildCached(false)
+            ->withAutoUpdateFile()
+            ->withDependentLibraries(...$dependentLibraries)
+            ->withDependentExtensions(...$dependentExtensions)
     );
 
     //call_user_func_array([$ext, 'withDependentLibraries'], $dependentLibraries);

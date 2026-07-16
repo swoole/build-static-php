@@ -17,14 +17,14 @@ mkdir -p ${WORK_TEMP_DIR}
 VERSION=v3.10.0
 
 download() {
-  curl -fSLo ${__PROJECT__}/pool/lib/libaom-${VERSION}.tar.gz https://aomedia.googlesource.com/aom/+archive/c2fe6bf370f7c14fbaf12884b76244a3cfd7c5fc.tar.gz
+  curl -fSLo ${__PROJECT__}/pool/lib/aom-${VERSION}.tar.gz https://aomedia.googlesource.com/aom/+archive/c2fe6bf370f7c14fbaf12884b76244a3cfd7c5fc.tar.gz
 }
 
 build() {
 
   cd ${WORK_TEMP_DIR}
   mkdir -p libaom-${VERSION}
-  tar -xvf ${__PROJECT__}/pool/lib/libaom-${VERSION}.tar.gz -C libaom-${VERSION}
+  tar -xvf ${__PROJECT__}/pool/lib/aom-${VERSION}.tar.gz -C libaom-${VERSION}
   cd libaom-${VERSION}
 
   mkdir -p build_dir
@@ -46,6 +46,6 @@ build() {
 }
 
 cd ${__PROJECT__}
-test -f ${__PROJECT__}/pool/lib/libaom-${VERSION}.tar.gz || download
+test -f ${__PROJECT__}/pool/lib/aom-${VERSION}.tar.gz || download
 
 build
