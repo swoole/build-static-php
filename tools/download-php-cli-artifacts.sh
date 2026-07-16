@@ -50,16 +50,16 @@ case $ARCH in
   ;;
 esac
 
-APP_VERSION='v8.4.21'
+APP_VERSION='v8.4.23'
 APP_NAME='php-cli'
-VERSION='v1.16.0'
+VERSION='v1.18.1'
 X_APP_VERSIONS=""
 declare -A PHP_VESIONS
 # PHP_VESIONS[0]="v8.1.34"
-PHP_VESIONS[1]="v8.2.31"
-PHP_VESIONS[2]="v8.3.31"
-PHP_VESIONS[3]="v8.4.21"
-PHP_VESIONS[4]="v8.5.6"
+PHP_VESIONS[1]="v8.2.32"
+PHP_VESIONS[2]="v8.3.32"
+PHP_VESIONS[3]="v8.4.23"
+PHP_VESIONS[4]="v8.5.8"
 
 while [ $# -gt 0 ]; do
   case "$1" in
