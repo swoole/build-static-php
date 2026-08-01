@@ -11,7 +11,7 @@ __PROJECT__=$(
 )
 cd ${__PROJECT__}
 
-PHP_VERSION='8.4.21'
+PHP_VERSION='8.4.24'
 X_PHP_VERSION='8.4'
 SWOOLE_VERSION=$(awk 'NR==1{ print $1 }' "${__PROJECT__}/sapi/SWOOLE-VERSION.conf")
 
