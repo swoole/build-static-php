@@ -32,9 +32,9 @@ $p->cleanFile(__DIR__ . '/configure.backup');
 
 
 # PHP 默认版本
-$php_version = '8.4.23';
-$php_version_id = '804023';
-$php_version_tag = 'php-8.4.23';
+$php_version = '8.4.24';
+$php_version_id = '804024';
+$php_version_tag = 'php-8.4.24';
 
 if ($p->getInputOption('with-php-version')) {
     $subject = $p->getInputOption('with-php-version');

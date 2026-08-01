@@ -18,7 +18,7 @@ on:
       php_version:
         required: true
         description: "定制构建选项: 指定 PHP 版本(版本号大于等于8.1)"
-        default: '--with-php-version=8.4.18'
+        default: '--with-php-version=8.4.24'
         type: choice
         options:
           - '--with-php-version=8.1.34'
@@ -37,7 +37,7 @@ on:
         type: string
 
 env:
-  BUILD_PHP_VERSION: 8.4.23
+  BUILD_PHP_VERSION: 8.4.24
   DOCKER_API_VERSION: 1.44
 
 jobs:
@@ -47,11 +47,11 @@ jobs:
     strategy:
       matrix:
         php-version:
-          - "8.2.32"
+          - "8.2.33"
           - "8.1.34"
-          - "8.3.32"
-          - "8.4.23"
-          - "8.5.8"
+          - "8.3.33"
+          - "8.4.24"
+          - "8.5.9"
     steps:
       - uses: actions/checkout@v5
       - name: Show Environment Info
