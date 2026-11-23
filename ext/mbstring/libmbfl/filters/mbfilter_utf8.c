@@ -548,6 +548,12 @@ static void mb_wchar_to_utf8(uint32_t *in, size_t len, mb_convert_buf *buf, bool
 		} else if (w < 0x800) {
 			MB_CONVERT_BUF_ENSURE(buf, out, limit, len + 2);
 			out = mb_convert_buf_add2(out, ((w >> 6) & 0x1F) | 0xC0, (w & 0x3F) | 0x80);
+		} else if (w >= 0xD800 && w <= 0xDFFF && buf->error_mode != MBFL_OUTPUTFILTER_ILLEGAL_MODE_BADUTF8) {
+			/* Surrogate codepoints (which may come from UCS-2, UCS-4 or numeric entities) are not valid in UTF-8.
+			 * BADUTF8 mode is only used internally to search strings; there, encoding them keeps them distinct
+			 * instead of turning them all into the same error marker. */
+			MB_CONVERT_ERROR(buf, out, limit, w, mb_wchar_to_utf8);
+			MB_CONVERT_BUF_ENSURE(buf, out, limit, len);
 		} else if (w < 0x10000) {
 			MB_CONVERT_BUF_ENSURE(buf, out, limit, len + 3);
 			out = mb_convert_buf_add3(out, ((w >> 12) & 0xF) | 0xE0, ((w >> 6) & 0x3F) | 0x80, (w & 0x3F) | 0x80);
@@ -725,7 +731,13 @@ static int mbfl_filt_conv_wchar_utf8_mobile(int c, mbfl_convert_filter *filter)
  * This macro converts uppercase ASCII values to Regional Indicator codepoints */
 #define NFLAGS(c) (0x1F1A5+(int)(c))
 
-static const char nflags_s[10][2] = {"CN","DE","ES","FR","GB","IT","JP","KR","RU","US"};
+#if __has_attribute(nonstring) && defined(__GNUC__) && ((!defined(__clang__) && __GNUC__ >= 15) || (defined(__clang_major__) && __clang_major__ >= 20))
+# define ZEND_NONSTRING __attribute__((nonstring))
+#else
+# define ZEND_NONSTRING
+#endif
+
+static const char nflags_s[10][2] ZEND_NONSTRING = {"CN","DE","ES","FR","GB","IT","JP","KR","RU","US"};
 static const int nflags_code_kddi[10] = { 0x2549, 0x2546, 0x24C0, 0x2545, 0x2548, 0x2547, 0x2750, 0x254A, 0x24C1, 0x27F7 };
 static const int nflags_code_sb[10] = { 0x2B0A, 0x2B05, 0x2B08, 0x2B04, 0x2B07, 0x2B06, 0x2B02, 0x2B0B, 0x2B09, 0x2B03 };
 

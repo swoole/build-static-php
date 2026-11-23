@@ -191,7 +191,7 @@ static void php_pcre_free(void *block, void *data)
 
 static void *php_pcre_emalloc(PCRE2_SIZE size, void *data)
 {
-	return emalloc(size);
+	return femalloc(size, /* fallible */ true);
 }
 
 static void php_pcre_efree(void *block, void *data)
@@ -631,7 +631,7 @@ PHPAPI pcre_cache_entry* pcre_get_compiled_regex_cache_ex(zend_string *regex, bo
 
 	/* Parse through the leading whitespace, and display a warning if we
 	   get to the end without encountering a delimiter. */
-	while (isspace((int)*(unsigned char *)p)) p++;
+	while (isspace((unsigned char)*p)) p++;
 	if (p >= end_p) {
 		if (key != regex) {
 			zend_string_release_ex(key, 0);
@@ -644,7 +644,7 @@ PHPAPI pcre_cache_entry* pcre_get_compiled_regex_cache_ex(zend_string *regex, bo
 	/* Get the delimiter and display a warning if it is alphanumeric
 	   or a backslash. */
 	delimiter = *p++;
-	if (isalnum((int)*(unsigned char *)&delimiter) || delimiter == '\\' || delimiter == '\0') {
+	if (isalnum((unsigned char)delimiter) || delimiter == '\\' || delimiter == '\0') {
 		if (key != regex) {
 			zend_string_release_ex(key, 0);
 		}
@@ -734,6 +734,8 @@ PHPAPI pcre_cache_entry* pcre_get_compiled_regex_cache_ex(zend_string *regex, bo
 #ifdef PCRE2_UCP
 						coptions |= PCRE2_UCP;
 #endif
+						/* The \C escape sequence is unsafe in PCRE2_UTF mode */
+						coptions |= PCRE2_NEVER_BACKSLASH_C;
 				break;
 			case 'J':	coptions |= PCRE2_DUPNAMES;		break;
 
@@ -787,8 +789,13 @@ PHPAPI pcre_cache_entry* pcre_get_compiled_regex_cache_ex(zend_string *regex, bo
 		if (key != regex) {
 			zend_string_release_ex(key, 0);
 		}
-		pcre2_get_error_message(errnumber, error, sizeof(error));
-		php_error_docref(NULL,E_WARNING, "Compilation failed: %s at offset %zu", error, erroffset);
+		const char *err_msg = (const char*) error;
+		if (errnumber == PCRE2_ERROR_BACKSLASH_C_CALLER_DISABLED) {
+			err_msg = "using \\C is incompatible with the 'u' modifier";
+		} else {
+			pcre2_get_error_message(errnumber, error, sizeof(error));
+		}
+		php_error_docref(NULL,E_WARNING, "Compilation failed: %s at offset %zu", err_msg, erroffset);
 		pcre_handle_exec_error(PCRE2_ERROR_INTERNAL);
 		efree(pattern);
 		return NULL;
@@ -840,6 +847,7 @@ PHPAPI pcre_cache_entry* pcre_get_compiled_regex_cache_ex(zend_string *regex, bo
 		if (key != regex) {
 			zend_string_release_ex(key, 0);
 		}
+		pcre2_code_free(new_entry.re);
 		php_error_docref(NULL, E_WARNING, "Internal pcre2_pattern_info() error %d", rc);
 		pcre_handle_exec_error(PCRE2_ERROR_INTERNAL);
 		return NULL;
@@ -850,6 +858,7 @@ PHPAPI pcre_cache_entry* pcre_get_compiled_regex_cache_ex(zend_string *regex, bo
 		if (key != regex) {
 			zend_string_release_ex(key, 0);
 		}
+		pcre2_code_free(new_entry.re);
 		php_error_docref(NULL, E_WARNING, "Internal pcre_pattern_info() error %d", rc);
 		pcre_handle_exec_error(PCRE2_ERROR_INTERNAL);
 		return NULL;
@@ -1031,7 +1040,7 @@ static inline void add_offset_pair(
 }
 /* }}} */
 
-static void populate_subpat_array(
+static zend_result populate_subpat_array(
 		zval *subpats, const char *subject, PCRE2_SIZE *offsets, zend_string **subpat_names,
 		uint32_t num_subpats, int count, const PCRE2_SPTR mark, zend_long flags) {
 	zend_long offset_capture = flags & PREG_OFFSET_CAPTURE;
@@ -1045,10 +1054,16 @@ static void populate_subpat_array(
 				add_offset_pair(
 					subpats_ht, subject, offsets[2*i], offsets[2*i+1],
 					subpat_names[i], unmatched_as_null);
+				if (ZEND_HAS_OOM()) {
+					return FAILURE;
+				}
 			}
 			if (unmatched_as_null) {
 				for (i = count; i < num_subpats; i++) {
 					add_offset_pair(subpats_ht, NULL, PCRE2_UNSET, PCRE2_UNSET, subpat_names[i], 1);
+					if (ZEND_HAS_OOM()) {
+						return FAILURE;
+					}
 				}
 			}
 		} else {
@@ -1059,6 +1074,9 @@ static void populate_subpat_array(
 					add_named(subpats_ht, subpat_names[i], &val, offsets[2*i] == PCRE2_UNSET);
 				}
 				zend_hash_next_index_insert_new(subpats_ht, &val);
+				if (ZEND_HAS_OOM()) {
+					return FAILURE;
+				}
 			}
 			if (unmatched_as_null) {
 				for (i = count; i < num_subpats; i++) {
@@ -1067,6 +1085,9 @@ static void populate_subpat_array(
 						zend_hash_add(subpats_ht, subpat_names[i], &val);
 					}
 					zend_hash_next_index_insert_new(subpats_ht, &val);
+					if (ZEND_HAS_OOM()) {
+						return FAILURE;
+					}
 				}
 			}
 		}
@@ -1075,10 +1096,16 @@ static void populate_subpat_array(
 			for (i = 0; i < count; i++) {
 				add_offset_pair(
 					subpats_ht, subject, offsets[2*i], offsets[2*i+1], NULL, unmatched_as_null);
+				if (ZEND_HAS_OOM()) {
+					return FAILURE;
+				}
 			}
 			if (unmatched_as_null) {
 				for (i = count; i < num_subpats; i++) {
 					add_offset_pair(subpats_ht, NULL, PCRE2_UNSET, PCRE2_UNSET, NULL, 1);
+					if (ZEND_HAS_OOM()) {
+						return FAILURE;
+					}
 				}
 			}
 		} else {
@@ -1086,10 +1113,16 @@ static void populate_subpat_array(
 				populate_match_value(
 					&val, subject, offsets[2*i], offsets[2*i+1], unmatched_as_null);
 				zend_hash_next_index_insert_new(subpats_ht, &val);
+				if (ZEND_HAS_OOM()) {
+					return FAILURE;
+				}
 			}
 			if (unmatched_as_null) {
 				for (i = count; i < num_subpats; i++) {
 					add_next_index_null(subpats);
+					if (ZEND_HAS_OOM()) {
+						return FAILURE;
+					}
 				}
 			}
 		}
@@ -1098,6 +1131,7 @@ static void populate_subpat_array(
 	if (mark) {
 		add_assoc_string_ex(subpats, "MARK", sizeof("MARK") - 1, (char *)mark);
 	}
+	return ZEND_HAS_OOM() ? FAILURE : SUCCESS;
 }
 
 static void php_do_pcre_match(INTERNAL_FUNCTION_PARAMETERS, bool global) /* {{{ */
@@ -1173,6 +1207,7 @@ PHPAPI void php_pcre_match_impl(pcre_cache_entry *pce, zend_string *subject_str,
 	HashTable		*marks = NULL;		/* Array of marks for PREG_PATTERN_ORDER */
 	pcre2_match_data *match_data;
 	PCRE2_SIZE		 start_offset2, orig_start_offset;
+	bool old_mdata_used;
 
 	char *subject = ZSTR_VAL(subject_str);
 	size_t subject_len = ZSTR_LEN(subject_str);
@@ -1242,7 +1277,9 @@ PHPAPI void php_pcre_match_impl(pcre_cache_entry *pce, zend_string *subject_str,
 	matched = 0;
 	PCRE_G(error_code) = PHP_PCRE_NO_ERROR;
 
-	if (!mdata_used && num_subpats <= PHP_PCRE_PREALLOC_MDATA_SIZE) {
+	old_mdata_used = mdata_used;
+	if (!old_mdata_used && num_subpats <= PHP_PCRE_PREALLOC_MDATA_SIZE) {
+		mdata_used = true;
 		match_data = mdata;
 	} else {
 		match_data = pcre2_match_data_create_from_pattern(pce->re, PCRE_G(gctx_zmm));
@@ -1279,6 +1316,10 @@ PHPAPI void php_pcre_match_impl(pcre_cache_entry *pce, zend_string *subject_str,
 			options, match_data, mctx);
 
 	while (1) {
+		if (ZEND_HAS_OOM()) {
+			goto oom;
+		}
+
 		/* If something has matched */
 		if (count >= 0) {
 			/* Check for too many substrings condition. */
@@ -1294,7 +1335,18 @@ matched:
 			if (subpats != NULL) {
 				/* Try to get the list of substrings and display a warning if failed. */
 				if (UNEXPECTED(offsets[1] < offsets[0])) {
-					if (match_sets) efree(match_sets);
+					if (match_sets) {
+						for (i = 0; i < num_subpats; i++) {
+							zend_array_destroy(match_sets[i]);
+						}
+						efree(match_sets);
+					}
+					if (marks) {
+						zend_array_destroy(marks);
+					}
+					if (match_data != mdata) {
+						pcre2_match_data_free(match_data);
+					}
 					php_error_docref(NULL, E_WARNING, "Get subpatterns list failed");
 					RETURN_FALSE;
 				}
@@ -1307,6 +1359,9 @@ matched:
 								add_offset_pair(
 									match_sets[i], subject, offsets[2*i], offsets[2*i+1],
 									NULL, unmatched_as_null);
+								if (ZEND_HAS_OOM()) {
+									goto oom;
+								}
 							}
 						} else {
 							for (i = 0; i < count; i++) {
@@ -1314,6 +1369,9 @@ matched:
 								populate_match_value(
 									&val, subject, offsets[2*i], offsets[2*i+1], unmatched_as_null);
 								zend_hash_next_index_insert_new(match_sets[i], &val);
+								if (ZEND_HAS_OOM()) {
+									goto oom;
+								}
 							}
 						}
 						mark = pcre2_get_mark(match_data);
@@ -1346,23 +1404,33 @@ matched:
 									ZVAL_EMPTY_STRING(&tmp);
 									zend_hash_next_index_insert_new(match_sets[i], &tmp);
 								}
+								if (ZEND_HAS_OOM()) {
+									goto oom;
+								}
 							}
 						}
 					} else {
 						/* Allocate and populate the result set array */
 						mark = pcre2_get_mark(match_data);
 						array_init_size(&result_set, count + (mark ? 1 : 0));
-						populate_subpat_array(
+						zend_result result = populate_subpat_array(
 							&result_set, subject, offsets, subpat_names,
 							num_subpats, count, mark, flags);
+						if (UNEXPECTED(result == FAILURE)) {
+							zval_ptr_dtor(&result_set);
+							goto oom;
+						}
 						/* And add it to the output array */
 						zend_hash_next_index_insert_new(Z_ARRVAL_P(subpats), &result_set);
 					}
 				} else {			/* single pattern matching */
 					/* For each subpattern, insert it into the subpatterns array. */
 					mark = pcre2_get_mark(match_data);
-					populate_subpat_array(
+					zend_result result = populate_subpat_array(
 						subpats, subject, offsets, subpat_names, num_subpats, count, mark, flags);
+					if (UNEXPECTED(result == FAILURE)) {
+						goto oom;
+					}
 					break;
 				}
 			}
@@ -1428,6 +1496,7 @@ error:
 	if (match_data != mdata) {
 		pcre2_match_data_free(match_data);
 	}
+	mdata_used = old_mdata_used;
 
 	/* Add the match sets to the output array and clean up */
 	if (match_sets) {
@@ -1468,6 +1537,25 @@ error:
 	} else {
 		RETVAL_FALSE;
 	}
+	return;
+
+oom:
+	if (match_data != mdata) {
+		pcre2_match_data_free(match_data);
+	}
+	if (match_sets) {
+		for (i = 0; i < num_subpats; i++) {
+			zend_array_destroy(match_sets[i]);
+		}
+		efree(match_sets);
+	}
+	if (marks) {
+		zend_array_destroy(marks);
+	}
+	if (subpats) {
+		zend_hash_clean(Z_ARRVAL_P(subpats));
+	}
+	RETURN_OOM();
 }
 /* }}} */
 
@@ -1489,7 +1577,8 @@ ZEND_FRAMELESS_FUNCTION(preg_match, 2)
 	/* Compile regex or get it from cache. */
 	pcre_cache_entry *pce;
 	if ((pce = pcre_get_compiled_regex_cache(regex)) == NULL) {
-		RETURN_FALSE;
+		RETVAL_FALSE;
+		goto flf_clean;
 	}
 
 	pce->refcount++;
@@ -1555,7 +1644,11 @@ static zend_string *preg_do_repl_func(zend_fcall_info *fci, zend_fcall_info_cach
 	zval	     arg;				/* Argument to pass to function */
 
 	array_init_size(&arg, count + (mark ? 1 : 0));
-	populate_subpat_array(&arg, subject, offsets, subpat_names, num_subpats, count, mark, flags);
+	zend_result result = populate_subpat_array(&arg, subject, offsets, subpat_names, num_subpats, count, mark, flags);
+	if (UNEXPECTED(result == FAILURE)) {
+		zval_ptr_dtor(&arg);
+		return NULL;
+	}
 
 	fci->retval = &retval;
 	fci->param_count = 1;
@@ -1631,6 +1724,7 @@ PHPAPI zend_string *php_pcre_replace_impl(pcre_cache_entry *pce, zend_string *su
 	size_t			result_len; 		/* Length of result */
 	zend_string		*result;			/* Result of replacement */
 	pcre2_match_data *match_data;
+	bool old_mdata_used;
 
 	/* Calculate the size of the offsets array, and allocate memory for it. */
 	num_subpats = pce->capture_count + 1;
@@ -1644,7 +1738,9 @@ PHPAPI zend_string *php_pcre_replace_impl(pcre_cache_entry *pce, zend_string *su
 	result_len = 0;
 	PCRE_G(error_code) = PHP_PCRE_NO_ERROR;
 
-	if (!mdata_used && num_subpats <= PHP_PCRE_PREALLOC_MDATA_SIZE) {
+	old_mdata_used = mdata_used;
+	if (!old_mdata_used && num_subpats <= PHP_PCRE_PREALLOC_MDATA_SIZE) {
+		mdata_used = true;
 		match_data = mdata;
 	} else {
 		match_data = pcre2_match_data_create_from_pattern(pce->re, PCRE_G(gctx_zmm));
@@ -1726,9 +1822,18 @@ matched:
 			if (new_len >= alloc_len) {
 				alloc_len = zend_safe_address_guarded(2, new_len, ZSTR_MAX_OVERHEAD) - ZSTR_MAX_OVERHEAD;
 				if (result == NULL) {
-					result = zend_string_alloc(alloc_len, 0);
+					result = zend_string_falloc(alloc_len, /* persistent */ false, /* fallible */ true);
+					if (!result) {
+						goto error;
+					}
 				} else {
-					result = zend_string_extend(result, alloc_len, 0);
+					zend_string *extended_result = zend_string_fextend(result, alloc_len, /* persistent */ false, /* fallible */ true);
+					if (!extended_result) {
+						zend_string_release(result);
+						result = NULL;
+						goto error;
+					}
+					result = extended_result;
 				}
 			}
 
@@ -1846,6 +1951,7 @@ error:
 	if (match_data != mdata) {
 		pcre2_match_data_free(match_data);
 	}
+	mdata_used = old_mdata_used;
 
 	return result;
 }
@@ -1953,14 +2059,27 @@ matched:
 				fci, fcc, subject, offsets, subpat_names, num_subpats, count,
 				pcre2_get_mark(match_data), flags);
 
-			ZEND_ASSERT(eval_result);
+			if (UNEXPECTED(!eval_result)) {
+				goto error;
+			}
 			new_len = zend_safe_address_guarded(1, ZSTR_LEN(eval_result) + ZSTR_MAX_OVERHEAD, new_len) -ZSTR_MAX_OVERHEAD;
 			if (new_len >= alloc_len) {
 				alloc_len = zend_safe_address_guarded(2, new_len, ZSTR_MAX_OVERHEAD) - ZSTR_MAX_OVERHEAD;
 				if (result == NULL) {
-					result = zend_string_alloc(alloc_len, 0);
+					result = zend_string_falloc(alloc_len, /* persistent */ false, /* fallible */ true);
+					if (!result) {
+						zend_string_release_ex(eval_result, 0);
+						goto error;
+					}
 				} else {
-					result = zend_string_extend(result, alloc_len, 0);
+					zend_string *extended_result = zend_string_fextend(result, alloc_len, /* persistent */ false, /* fallible */ true);
+					if (!extended_result) {
+						zend_string_release_ex(eval_result, 0);
+						zend_string_release(result);
+						result = NULL;
+						goto error;
+					}
+					result = extended_result;
 				}
 			}
 
@@ -2574,6 +2693,7 @@ PHPAPI void php_pcre_split_impl(pcre_cache_entry *pce, zend_string *subject_str,
 	uint32_t		 num_subpats;		/* Number of captured subpatterns */
 	zval			 tmp;
 	pcre2_match_data *match_data;
+	bool old_mdata_used;
 	char *subject = ZSTR_VAL(subject_str);
 
 	no_empty = flags & PREG_SPLIT_NO_EMPTY;
@@ -2600,7 +2720,9 @@ PHPAPI void php_pcre_split_impl(pcre_cache_entry *pce, zend_string *subject_str,
 		goto last;
 	}
 
-	if (!mdata_used && num_subpats <= PHP_PCRE_PREALLOC_MDATA_SIZE) {
+	old_mdata_used = mdata_used;
+	if (!old_mdata_used && num_subpats <= PHP_PCRE_PREALLOC_MDATA_SIZE) {
+		mdata_used = true;
 		match_data = mdata;
 	} else {
 		match_data = pcre2_match_data_create_from_pattern(pce->re, PCRE_G(gctx_zmm));
@@ -2626,6 +2748,11 @@ PHPAPI void php_pcre_split_impl(pcre_cache_entry *pce, zend_string *subject_str,
 			options, match_data, mctx);
 
 	while (1) {
+		if (ZEND_HAS_OOM()) {
+			PCRE_G(error_code) = PHP_PCRE_INTERNAL_ERROR;
+			break;
+		}
+
 		/* If something matched */
 		if (count >= 0) {
 			/* Check for too many substrings condition. */
@@ -2729,6 +2856,7 @@ error:
 	if (match_data != mdata) {
 		pcre2_match_data_free(match_data);
 	}
+	mdata_used = old_mdata_used;
 
 	if (PCRE_G(error_code) != PHP_PCRE_NO_ERROR) {
 		zval_ptr_dtor(return_value);
@@ -2928,6 +3056,7 @@ PHPAPI void  php_pcre_grep_impl(pcre_cache_entry *pce, zval *input, zval *return
 	zend_ulong		 num_key;
 	bool		 invert;			/* Whether to return non-matching
 										   entries */
+	bool old_mdata_used;
 	pcre2_match_data *match_data;
 	invert = flags & PREG_GREP_INVERT ? 1 : 0;
 
@@ -2940,7 +3069,9 @@ PHPAPI void  php_pcre_grep_impl(pcre_cache_entry *pce, zval *input, zval *return
 
 	PCRE_G(error_code) = PHP_PCRE_NO_ERROR;
 
-	if (!mdata_used && num_subpats <= PHP_PCRE_PREALLOC_MDATA_SIZE) {
+	old_mdata_used = mdata_used;
+	if (!old_mdata_used && num_subpats <= PHP_PCRE_PREALLOC_MDATA_SIZE) {
+		mdata_used = true;
 		match_data = mdata;
 	} else {
 		match_data = pcre2_match_data_create_from_pattern(pce->re, PCRE_G(gctx_zmm));
@@ -3005,6 +3136,7 @@ PHPAPI void  php_pcre_grep_impl(pcre_cache_entry *pce, zval *input, zval *return
 	if (match_data != mdata) {
 		pcre2_match_data_free(match_data);
 	}
+	mdata_used = old_mdata_used;
 }
 /* }}} */
 

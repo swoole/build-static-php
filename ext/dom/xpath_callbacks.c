@@ -12,7 +12,7 @@
    +----------------------------------------------------------------------+
    | Authors: Christian Stocker <chregu@php.net>                          |
    |          Rob Richards <rrichards@php.net>                            |
-   |          Niels Dossche <nielsdos@php.net>                            |
+   |          Nora Dossche  <ndossche@php.net>                            |
    +----------------------------------------------------------------------+
  */
 
@@ -76,18 +76,22 @@ PHP_DOM_EXPORT void php_dom_xpath_callbacks_clean_argument_stack(xmlXPathParserC
 PHP_DOM_EXPORT void php_dom_xpath_callbacks_dtor(php_dom_xpath_callbacks *registry)
 {
 	if (registry->php_ns) {
-		php_dom_xpath_callback_ns_dtor(registry->php_ns);
-		efree(registry->php_ns);
+		php_dom_xpath_callback_ns *php_ns = registry->php_ns;
+		registry->php_ns = NULL;
+		php_dom_xpath_callback_ns_dtor(php_ns);
+		efree(php_ns);
 	}
 	if (registry->namespaces) {
+		HashTable *namespaces = registry->namespaces;
+		registry->namespaces = NULL;
 		php_dom_xpath_callback_ns *ns;
-		ZEND_HASH_MAP_FOREACH_PTR(registry->namespaces, ns) {
+		ZEND_HASH_MAP_FOREACH_PTR(namespaces, ns) {
 			php_dom_xpath_callback_ns_dtor(ns);
 			efree(ns);
 		} ZEND_HASH_FOREACH_END();
 
-		zend_hash_destroy(registry->namespaces);
-		FREE_HASHTABLE(registry->namespaces);
+		zend_hash_destroy(namespaces);
+		FREE_HASHTABLE(namespaces);
 	}
 	php_dom_xpath_callbacks_clean_node_list(registry);
 }
@@ -206,14 +210,16 @@ static zend_result php_dom_xpath_callback_ns_update_method_handler(
 			ZVAL_PTR(&registered_value, fcc);
 
 			if (!key) {
-				zend_string *str = zval_try_get_string(entry);
+				zend_string *tmp_str;
+				zend_string *str = zval_try_get_tmp_string(entry, &tmp_str);
 				if (str && php_dom_xpath_is_callback_name_valid_and_throw(str, name_validation, true)) {
 					zend_hash_update(&ns->functions, str, &registered_value);
 					if (register_func) {
 						register_func(ctxt, namespace, str);
 					}
-					zend_string_release_ex(str, false);
+					zend_tmp_string_release(tmp_str);
 				} else {
+					zend_tmp_string_release(tmp_str);
 					zend_fcc_dtor(fcc);
 					efree(fcc);
 					return FAILURE;
@@ -379,11 +385,19 @@ static zval *php_dom_xpath_callback_fetch_args(xmlXPathParserContextPtr ctxt, ui
 	return params;
 }
 
-static void php_dom_xpath_callback_cleanup_args(zval *params, uint32_t param_count)
+static void php_dom_xpath_callback_cleanup_args(php_dom_xpath_callbacks *xpath_callbacks, zval *params, uint32_t param_count)
 {
 	if (params) {
 		for (uint32_t i = 0; i < param_count; i++) {
-			zval_ptr_dtor(&params[i]);
+			zval *param = &params[i];
+			if (Z_TYPE_P(param) == IS_OBJECT || Z_TYPE_P(param) == IS_ARRAY) {
+				if (xpath_callbacks->node_list == NULL) {
+					xpath_callbacks->node_list = zend_new_array(0);
+				}
+				zend_hash_next_index_insert_new(xpath_callbacks->node_list, param);
+			} else {
+				zval_ptr_dtor(param);
+			}
 		}
 		efree(params);
 	}
@@ -393,7 +407,7 @@ static zend_result php_dom_xpath_callback_dispatch(php_dom_xpath_callbacks *xpat
 {
     zval callback_retval;
 
-	if (UNEXPECTED(ns == NULL)) {
+	if (UNEXPECTED(ns == NULL || ns->mode == PHP_DOM_REG_FUNC_MODE_NONE)) {
 		zend_throw_error(NULL, "No callbacks were registered");
 		return FAILURE;
 	}
@@ -481,7 +495,7 @@ PHP_DOM_EXPORT zend_result php_dom_xpath_callbacks_call_php_ns(php_dom_xpath_cal
 
 cleanup:
 	xmlXPathFreeObject(obj);
-	php_dom_xpath_callback_cleanup_args(params, param_count);
+	php_dom_xpath_callback_cleanup_args(xpath_callbacks, params, param_count);
 cleanup_no_obj:
 	if (UNEXPECTED(result != SUCCESS)) {
 		/* Push sentinel value */
@@ -509,7 +523,7 @@ PHP_DOM_EXPORT zend_result php_dom_xpath_callbacks_call_custom_ns(php_dom_xpath_
 
 	zend_result result = php_dom_xpath_callback_dispatch(xpath_callbacks, ns, ctxt, params, param_count, function_name, function_name_length);
 
-	php_dom_xpath_callback_cleanup_args(params, param_count);
+	php_dom_xpath_callback_cleanup_args(xpath_callbacks, params, param_count);
 	if (UNEXPECTED(result != SUCCESS)) {
 		/* Push sentinel value */
 		valuePush(ctxt, xmlXPathNewString((const xmlChar *) ""));

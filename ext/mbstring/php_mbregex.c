@@ -409,8 +409,13 @@ int php_mb_regex_set_mbctype(const char *encname)
 	if (mbctype == ONIG_ENCODING_UNDEF) {
 		return FAILURE;
 	}
+	const mbfl_encoding *mbfl_enc = mbfl_name2encoding(encname);
+	if (mbfl_enc == NULL) {
+		/* Encoding supported by Oniguruma but not by mbfl */
+		return FAILURE;
+	}
 	MBREX(current_mbctype) = mbctype;
-	MBREX(current_mbctype_mbfl_encoding) = mbfl_name2encoding(encname);
+	MBREX(current_mbctype_mbfl_encoding) = mbfl_enc;
 	return SUCCESS;
 }
 /* }}} */
@@ -476,6 +481,10 @@ static php_mb_regex_t *php_mbregex_compile_pattern(const char *pattern, size_t p
 		if (rc == MBREX(search_re)) {
 			/* reuse the new rc? see bug #72399 */
 			MBREX(search_re) = NULL;
+			if (MBREX(search_regs) != NULL) {
+				onig_region_free(MBREX(search_regs), 1);
+				MBREX(search_regs) = NULL;
+			}
 		}
 		zend_hash_str_update_ptr(&MBREX(ht_rc), (char *)pattern, patlen, retval);
 	} else {
@@ -721,6 +730,10 @@ static inline void mb_regex_substitute(
 	eos = replace + replace_len;
 
 	while (p < eos) {
+		if (ZEND_HAS_OOM()) {
+			return;
+		}
+
 		clen = (int) php_mb_mbchar_bytes(p, enc);
 		if (clen != 1 || p == eos || p[0] != '\\') {
 			/* skip anything that's not an ascii backslash */
@@ -762,7 +775,7 @@ static inline void mb_regex_substitute(
 				clen = (int) php_mb_mbchar_bytes(++p, enc);
 				if (clen != 1 || p == eos || (p[0] != '<' && p[0] != '\'')) {
 					/* not a backref delimiter */
-					p += clen;
+					p = MIN(p + clen, eos);
 					smart_str_appendl(pbuf, sp, p - sp);
 					continue;
 				}
@@ -779,15 +792,16 @@ static inline void mb_regex_substitute(
 						continue;
 					}
 					if (name_end[0] == delim) break;
-					if (maybe_num && !isdigit(name_end[0])) maybe_num = 0;
+					if (maybe_num && !isdigit((unsigned char)name_end[0])) maybe_num = 0;
 					name_end++;
 				}
-				p = name_end + 1;
 				if (name_end - name < 1 || name_end >= eos) {
 					/* the backref was empty or we failed to find the end delimiter */
+					p = MIN(name_end + 1, eos);
 					smart_str_appendl(pbuf, sp, p - sp);
 					continue;
 				}
+				p = name_end + 1;
 				/* we have either a name or a number */
 				if (maybe_num) {
 					if (!onig_noname_group_capture_is_active(regexp)) {
@@ -1231,6 +1245,10 @@ PHP_FUNCTION(mb_split)
 			pos++;
 		}
 		onig_region_free(regs, 0);
+		if (ZEND_HAS_OOM()) {
+			err = -2;
+			break;
+		}
 	}
 
 	onig_region_free(regs, 1);

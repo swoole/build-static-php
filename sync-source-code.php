@@ -6,11 +6,21 @@ $project_dir = __DIR__;
 $php_source_folder = require_once __DIR__ . '/sapi/scripts/download-php-src-archive.php';
 $sync_dest_dir = $project_dir . '/var/sync-source-code-tmp';
 
+foreach ([
+    'Zend/zend_language_parser.c',
+    'Zend/zend_language_parser.h',
+    'Zend/zend_language_scanner.c',
+] as $generated_source) {
+    if (!is_file("{$php_source_folder}/{$generated_source}")) {
+        throw new RuntimeException("PHP source synchronization requires generated file: {$generated_source}");
+    }
+}
+
 $scanned_directory_source = array_diff(scandir($php_source_folder . '/ext/'), array('..', '.'));
 $scanned_directory_destination = array_diff(scandir($project_dir . '/ext/'), array('..', '.'));
 
 
-$SYNC_SOURCE_CODE_SHELL = 'set -x';
+$SYNC_SOURCE_CODE_SHELL = 'set -ex';
 
 # 默认同步代码 到测试验证目录:  php sync-source-code.php
 # 正式同步代码 请执行命令:     php sync-source-code.php --action run
@@ -32,12 +42,24 @@ if (!empty($options['action']) && $options['action'] == 'run') {
 
     $directories = array_intersect($scanned_directory_source, $scanned_directory_destination);
 
-    `test -d {$sync_dest_dir} && rm -rf {$sync_dest_dir}`;
-    `mkdir -p {$sync_dest_dir}`;
+    if (is_dir($sync_dest_dir)) {
+        $output = [];
+        $status = 0;
+        exec('rm -rf ' . escapeshellarg($sync_dest_dir), $output, $status);
+        if ($status !== 0) {
+            throw new RuntimeException("Unable to clean synchronization directory: {$sync_dest_dir}");
+        }
+    }
+    if (!mkdir($sync_dest_dir, 0755, true) && !is_dir($sync_dest_dir)) {
+        throw new RuntimeException("Unable to create synchronization directory: {$sync_dest_dir}");
+    }
 
     foreach ($directories as $directory) {
         # echo "mkdir -p {$sync_dest_dir}/ext/{$directory}" . PHP_EOL;
-        `mkdir -p {$sync_dest_dir}/ext/{$directory}`;
+        $extension_dir = "{$sync_dest_dir}/ext/{$directory}";
+        if (!mkdir($extension_dir, 0755, true) && !is_dir($extension_dir)) {
+            throw new RuntimeException("Unable to create extension synchronization directory: {$extension_dir}");
+        }
 
     }
 
@@ -45,6 +67,7 @@ if (!empty($options['action']) && $options['action'] == 'run') {
     cd {$sync_dest_dir}
     mkdir -p ./sapi/cli
     mkdir -p ./sapi/cli/fpm/
+    mkdir -p ./sapi/embed/
     mkdir -p ./TSRM/
     mkdir -p ./Zend/
     mkdir -p ./build/
@@ -60,7 +83,7 @@ $SYNC_SOURCE_CODE_SHELL .= PHP_EOL . <<<EOF
     SRC={$php_source_folder}
     __PROJECT__={$project_dir}
     __WORKDIR__={$sync_dest_dir}
-    cd \${WORKDIR}
+    cd \${__WORKDIR__}
 EOF;
 
 # 准备 同步代码脚本
@@ -192,14 +215,6 @@ extern void show_swoole_version(void);\
     sed -i.backup 's/int main(int argc, char \*argv\[\])/int fpm_main(int argc, char \*argv\[\])/g' ./sapi/cli/fpm/fpm_main.c
     sed -i.backup "s/{'-', 0, NULL}/{'P', 0, \"fpm\"},\n	{'-', 0, NULL}/g" ./sapi/cli/fpm/fpm_main.c
 
-    X_FPM_MATCH_LINE_NUM=$(sed -n '/__TIME__, get_zend_version());/=' ./sapi/cli/fpm/fpm_main.c)
-    X_FPM_REPLACE_LINE_NUM=$(($X_FPM_MATCH_LINE_NUM-2))
-    X_FPM_DELETE_START_LINE_NUM=$(($X_FPM_MATCH_LINE_NUM-1))
-    X_FPM_DELETE_END_LINE_NUM=$(($X_FPM_MATCH_LINE_NUM+3))
-
-    sed -i.backup "${X_FPM_REPLACE_LINE_NUM} s/.*/				show_swoole_version();/" ./sapi/cli/fpm/fpm_main.c
-    sed -i.backup "${X_FPM_DELETE_START_LINE_NUM},${X_FPM_DELETE_END_LINE_NUM}d" ./sapi/cli/fpm/fpm_main.c
-
     # show changed
     # git diff ./sapi/cli/fpm/fpm_main.c | cat
     # diff $SRC/sapi/fpm/fpm/fpm_main.c  ./sapi/cli/fpm/fpm_main.c
@@ -220,11 +235,20 @@ extern void show_swoole_version(void);\
     cp -rf $SRC/sapi/cli/php_cli_server.c ./sapi/cli
     cp -rf $SRC/sapi/cli/php.1.in ./sapi/cli
 
+    # embed
+    # 【只同步源码，不同步 config.m4】
+    # swoole-cli 的 sapi/embed/config.m4 经过改写（不走 PHP_SELECT_SAPI），不可被 php-src 原版覆盖
+    cp -rf $SRC/sapi/embed/php_embed.c ./sapi/embed
+    cp -rf $SRC/sapi/embed/php_embed.h ./sapi/embed
+    cp -rf $SRC/sapi/embed/CREDITS ./sapi/embed
+    cp -rf $SRC/sapi/embed/README.md ./sapi/embed
+
     # clean file
     test -f main/main.c.backup && rm -f main/main.c.backup
     test -f ext/opcache/config.m4.backup && rm -f ext/opcache/config.m4.backup
     test -f sapi/cli/fpm/fpm_main.c.backup && rm -f sapi/cli/fpm/fpm_main.c.backup
 
+<<<<<<< HEAD
     # patch for readline cli
     FOUND_DL_READLINE=$(grep -c '#ifdef COMPILE_DL_READLINE' ext/readline/readline_cli.c)
     if test $[FOUND_DL_READLINE] -gt 0 ; then
@@ -238,6 +262,14 @@ extern void show_swoole_version(void);\
         REPLACE_LINE_NUM=$(($REPLACE_LINE_NUM + 1))
         sed -i.backup "${REPLACE_LINE_NUM} s/.*/  /" ext/readline/readline_cli.c
     fi
+=======
+    # Dependency files generated for the previous PHP source version may still
+    # reference headers that no longer exist. Force the next build to recreate
+    # every libtool object and dependency list from the synchronized sources.
+    find Zend ext main sapi TSRM -type f \( -name '*.dep' -o -name '*.lo' \) -delete
+    rm -f libs/libphp.a
+
+>>>>>>> main
 EOF;
 
 echo PHP_EOL;
@@ -249,7 +281,11 @@ echo PHP_EOL;
 echo "synchronizing  .... ";
 echo PHP_EOL;
 echo PHP_EOL;
-echo `$SYNC_SOURCE_CODE_SHELL`;
+$sync_status = 0;
+passthru($SYNC_SOURCE_CODE_SHELL, $sync_status);
+if ($sync_status !== 0) {
+    throw new RuntimeException('PHP source synchronization failed with exit code: ' . $sync_status);
+}
 echo PHP_EOL;
 echo PHP_EOL;
 echo "synchronizing  end  ";
@@ -260,20 +296,48 @@ echo "apply patches .... " . PHP_EOL;
 function file_replace_str(string $file, string $search, string $replace): void
 {
     $content = file_get_contents($file);
+    if (!str_contains($content, $search)) {
+        throw new RuntimeException("Cannot find expected source fragment in {$file}: {$search}");
+    }
     $content = str_replace($search, $replace, $content);
     file_put_contents($file, $content);
 }
 
+function file_assert_contains(string $file, string $expected): void
+{
+    if (!str_contains(file_get_contents($file), $expected)) {
+        throw new RuntimeException("Missing synchronized source fragment in {$file}: {$expected}");
+    }
+}
+
 file_replace_str(
-    'sapi/cli/php_cli_server.c',
+    $sync_dest_dir . '/sapi/cli/php_cli_server.c',
     'PHP_FUNCTION(apache_request_headers)',
     'static PHP_FUNCTION(apache_request_headers)'
 );
 
 file_replace_str(
-    'sapi/cli/php_cli_server.c',
+    $sync_dest_dir . '/sapi/cli/php_cli_server.c',
     'PHP_FUNCTION(apache_response_headers)',
     'static PHP_FUNCTION(apache_response_headers)'
 );
+
+file_replace_str(
+    $sync_dest_dir . '/sapi/cli/fpm/fpm_main.c',
+    'php_print_version(&sapi_module);',
+    'show_swoole_version();'
+);
+
+$fpmMain = $sync_dest_dir . '/sapi/cli/fpm/fpm_main.c';
+foreach ([
+    'extern void show_swoole_version(void);',
+    'prog = "swoole-cli";',
+    'Usage: %s (fpm)',
+    'int fpm_main(int argc, char *argv[])',
+    "case 'P': /* enable fpm */",
+    "{'P', 0, \"fpm\"}",
+] as $expected) {
+    file_assert_contains($fpmMain, $expected);
+}
 
 echo "action: " . $action . ' done !' . PHP_EOL;

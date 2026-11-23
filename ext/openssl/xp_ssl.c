@@ -126,10 +126,6 @@
 #define GET_VER_OPT_LONG(_name, _num) \
 	if (GET_VER_OPT(_name)) _num = zval_get_long(val)
 
-/* Used for peer verification in windows */
-#define PHP_X509_NAME_ENTRY_TO_UTF8(ne, i, out) \
-	ASN1_STRING_to_UTF8(&out, X509_NAME_ENTRY_get_data(X509_NAME_get_entry(ne, i)))
-
 #ifdef HAVE_IPV6
 /* Used for IPv6 Address peer verification */
 #define EXPAND_IPV6_ADDRESS(_str, _bytes) \
@@ -417,9 +413,8 @@ static bool php_openssl_x509_fingerprint_match(X509 *peer, zval *val)
 
 static bool php_openssl_matches_wildcard_name(const char *subjectname, const char *certname) /* {{{ */
 {
-	char *wildcard = NULL;
-	ptrdiff_t prefix_len;
-	size_t suffix_len, subject_len;
+	const char *wildcard = NULL;
+	size_t prefix_len, suffix_len, subject_len;
 
 	if (strcasecmp(subjectname, certname) == 0) {
 		return 1;
@@ -438,7 +433,7 @@ static bool php_openssl_matches_wildcard_name(const char *subjectname, const cha
 
 	suffix_len = strlen(wildcard + 1);
 	subject_len = strlen(subjectname);
-	if (suffix_len <= subject_len) {
+	if (suffix_len + prefix_len <= subject_len) {
 		/* 2) suffix must match
 		 * 3) no . between prefix and suffix
 		 **/
@@ -450,7 +445,8 @@ static bool php_openssl_matches_wildcard_name(const char *subjectname, const cha
 }
 /* }}} */
 
-static bool php_openssl_matches_san_list(X509 *peer, const char *subject_name) /* {{{ */
+static bool php_openssl_matches_san_list(
+		X509 *peer, const char *subject_name, bool *has_service_id)
 {
 	int i, len;
 	unsigned char *cert_name = NULL;
@@ -458,6 +454,8 @@ static bool php_openssl_matches_san_list(X509 *peer, const char *subject_name) /
 
 	GENERAL_NAMES *alt_names = X509_get_ext_d2i(peer, NID_subject_alt_name, 0, 0);
 	int alt_name_count = sk_GENERAL_NAME_num(alt_names);
+
+	*has_service_id = false;
 
 #ifdef HAVE_IPV6_SAN
 	/* detect if subject name is an IPv6 address and expand once if required */
@@ -476,7 +474,12 @@ static bool php_openssl_matches_san_list(X509 *peer, const char *subject_name) /
 		GENERAL_NAME *san = sk_GENERAL_NAME_value(alt_names, i);
 
 		if (san->type == GEN_DNS) {
-			ASN1_STRING_to_UTF8(&cert_name, san->d.dNSName);
+			*has_service_id = true;
+
+			if (ASN1_STRING_to_UTF8(&cert_name, san->d.dNSName) < 0) {
+				/* TODO: warn ? */
+				continue;
+			}
 			if ((size_t)ASN1_STRING_length(san->d.dNSName) != strlen((const char*)cert_name)) {
 				OPENSSL_free(cert_name);
 				/* prevent null-byte poisoning*/
@@ -497,12 +500,12 @@ static bool php_openssl_matches_san_list(X509 *peer, const char *subject_name) /
 			}
 			OPENSSL_free(cert_name);
 		} else if (san->type == GEN_IPADD) {
-			if (san->d.iPAddress->length == 4) {
+			if (ASN1_STRING_length(san->d.iPAddress) == 4) {
 				snprintf(ipbuffer, sizeof(ipbuffer), "%d.%d.%d.%d",
-					san->d.iPAddress->data[0],
-					san->d.iPAddress->data[1],
-					san->d.iPAddress->data[2],
-					san->d.iPAddress->data[3]
+					ASN1_STRING_get0_data(san->d.iPAddress)[0],
+					ASN1_STRING_get0_data(san->d.iPAddress)[1],
+					ASN1_STRING_get0_data(san->d.iPAddress)[2],
+					ASN1_STRING_get0_data(san->d.iPAddress)[3]
 				);
 				if (strcasecmp(subject_name, (const char*)ipbuffer) == 0) {
 					sk_GENERAL_NAME_pop_free(alt_names, GENERAL_NAME_free);
@@ -511,9 +514,9 @@ static bool php_openssl_matches_san_list(X509 *peer, const char *subject_name) /
 				}
 			}
 #ifdef HAVE_IPV6_SAN
-			else if (san->d.ip->length == 16 && subject_name_is_ipv6) {
+			else if (ASN1_STRING_length(san->d.ip) == 16 && subject_name_is_ipv6) {
 				ipbuffer[0] = 0;
-				EXPAND_IPV6_ADDRESS(ipbuffer, san->d.iPAddress->data);
+				EXPAND_IPV6_ADDRESS(ipbuffer, ASN1_STRING_get0_data(san->d.iPAddress));
 				if (strcasecmp((const char*)subject_name_ipv6_expanded, (const char*)ipbuffer) == 0) {
 					sk_GENERAL_NAME_pop_free(alt_names, GENERAL_NAME_free);
 
@@ -521,6 +524,16 @@ static bool php_openssl_matches_san_list(X509 *peer, const char *subject_name) /
 				}
 			}
 #endif
+		} else if (san->type == GEN_URI) {
+			*has_service_id = true;
+		} else if (san->type == GEN_OTHERNAME) {
+			char oid[32];
+
+			/* SRV-ID, matched by OID because NID_SRVName needs OpenSSL 3.0 */
+			if (OBJ_obj2txt(oid, sizeof(oid), san->d.otherName->type_id, 1) > 0
+					&& strcmp(oid, "1.3.6.1.5.5.7.8.7") == 0) {
+				*has_service_id = true;
+			}
 		}
 	}
 
@@ -528,7 +541,6 @@ static bool php_openssl_matches_san_list(X509 *peer, const char *subject_name) /
 
 	return 0;
 }
-/* }}} */
 
 static bool php_openssl_matches_common_name(X509 *peer, const char *subject_name) /* {{{ */
 {
@@ -635,8 +647,16 @@ static zend_result php_openssl_apply_peer_verification_policy(SSL *ssl, X509 *pe
 		}
 
 		if (peer_name) {
-			if (php_openssl_matches_san_list(peer, peer_name)) {
+			bool has_service_id = false;
+
+			if (php_openssl_matches_san_list(peer, peer_name, &has_service_id)) {
 				return SUCCESS;
+			} else if (has_service_id) {
+				/* CN must be ignored if the certificate presents a service identity. */
+				php_error_docref(NULL, E_WARNING,
+					"Peer certificate subjectAltName did not match expected name `%s'",
+					peer_name);
+				return FAILURE;
 			} else if (php_openssl_matches_common_name(peer, peer_name)) {
 				return SUCCESS;
 			} else {
@@ -859,8 +879,9 @@ static long php_openssl_load_stream_cafile(X509_STORE *cert_store, const char *c
 		buffer_active = 0;
 		if (cert && X509_STORE_add_cert(cert_store, cert)) {
 			++certs_added;
-			X509_free(cert);
 		}
+		/* TODO: notify user when adding certificate failed? */
+		X509_free(cert);
 		goto cert_start;
 	}
 
@@ -1416,6 +1437,10 @@ static SSL_CTX *php_openssl_create_sni_server_ctx(char *cert_path, char *key_pat
 	/* The hello method is not inherited by SSL structs when assigning a new context
 	 * inside the SNI callback, so the just use SSLv23 */
 	SSL_CTX *ctx = SSL_CTX_new(SSLv23_server_method());
+	if (!ctx) {
+		php_error_docref(NULL, E_WARNING, "Failed to create the SSL context");
+		return NULL;
+	}
 
 	if (SSL_CTX_use_certificate_chain_file(ctx, cert_path) != 1) {
 		php_error_docref(NULL, E_WARNING,
@@ -1448,7 +1473,7 @@ static zend_result php_openssl_enable_server_sni(
 	zend_ulong key_index;
 	int i = 0;
 	char resolved_path_buff[MAXPATHLEN];
-	SSL_CTX *ctx;
+	SSL_CTX *ctx = NULL;
 
 	/* If the stream ctx disables SNI we're finished here */
 	if (GET_VER_OPT("SNI_enabled") && !zend_is_true(val)) {
@@ -1489,6 +1514,8 @@ static zend_result php_openssl_enable_server_sni(
 			);
 			return FAILURE;
 		}
+
+		ZVAL_DEREF(current);
 
 		if (Z_TYPE_P(current) == IS_ARRAY) {
 			zval *local_pk, *local_cert;
@@ -1544,17 +1571,17 @@ static zend_result php_openssl_enable_server_sni(
 			zend_string_release(local_pk_str);
 
 			ctx = php_openssl_create_sni_server_ctx(resolved_cert_path_buff, resolved_pk_path_buff);
-
-		} else if (php_openssl_check_path_str_ex(
-				Z_STR_P(current), resolved_path_buff, 0, false, false,
-				"SNI_server_certs in ssl stream context")) {
-			ctx = php_openssl_create_sni_server_ctx(resolved_path_buff, resolved_path_buff);
+		} else if (Z_TYPE_P(current) == IS_STRING) {
+			if (php_openssl_check_path_str_ex(Z_STR_P(current), resolved_path_buff, 0, false, false, "SNI_server_certs in ssl stream context")) {
+				ctx = php_openssl_create_sni_server_ctx(resolved_path_buff, resolved_path_buff);
+			} else {
+				php_error_docref(NULL, E_WARNING,
+						"Failed setting local cert chain file `%s'; file not found",
+						Z_STRVAL_P(current)
+				);
+			}
 		} else {
-			php_error_docref(NULL, E_WARNING,
-				"Failed setting local cert chain file `%s'; file not found",
-				Z_STRVAL_P(current)
-			);
-			return FAILURE;
+			php_error_docref(NULL, E_WARNING, "SNI_server_certs options values must be of type array|string");
 		}
 
 		if (ctx == NULL) {
@@ -1769,7 +1796,13 @@ static zend_result php_openssl_setup_crypto(php_stream *stream,
 				return FAILURE;
 			}
 			if (sslsock->is_client) {
-				SSL_CTX_set_alpn_protos(sslsock->ctx, alpn, alpn_len);
+				if (SSL_CTX_set_alpn_protos(sslsock->ctx, alpn, alpn_len)) {
+					php_error_docref(NULL, E_WARNING, "Failed setting TLS ALPN protocols, protocol names must not be empty");
+					efree(alpn);
+					SSL_CTX_free(sslsock->ctx);
+					sslsock->ctx = NULL;
+					return FAILURE;
+				}
 			} else {
 				sslsock->alpn_ctx.data = (unsigned char *) pestrndup((const char*)alpn, alpn_len, php_stream_is_persistent(stream));
 				sslsock->alpn_ctx.len = alpn_len;
@@ -1804,7 +1837,8 @@ static zend_result php_openssl_setup_crypto(php_stream *stream,
 
 	sslsock->ssl_handle = SSL_new(sslsock->ctx);
 
-	if (sslsock->ssl_handle == NULL) {
+	if (sslsock->ssl_handle == NULL
+		|| !SSL_set_ex_data(sslsock->ssl_handle, php_openssl_get_ssl_stream_data_index(), stream)) {
 		php_error_docref(NULL, E_WARNING, "SSL handle creation failure");
 		SSL_CTX_free(sslsock->ctx);
 		sslsock->ctx = NULL;
@@ -1815,8 +1849,6 @@ static zend_result php_openssl_setup_crypto(php_stream *stream,
 		}
 #endif
 		return FAILURE;
-	} else {
-		SSL_set_ex_data(sslsock->ssl_handle, php_openssl_get_ssl_stream_data_index(), stream);
 	}
 
 	if (!SSL_set_fd(sslsock->ssl_handle, sslsock->s.socket)) {
@@ -1972,6 +2004,7 @@ static int php_openssl_enable_crypto(php_stream *stream,
 				elapsed_time = php_openssl_subtract_timeval(cur_time, start_time);
 
 				if (php_openssl_compare_timeval( elapsed_time, *timeout) > 0) {
+					php_openssl_set_blocking(sslsock, blocked);
 					php_error_docref(NULL, E_WARNING, "SSL: Handshake timed out");
 					return -1;
 				}
@@ -2064,7 +2097,11 @@ static ssize_t php_openssl_sockop_io(int read, php_stream *stream, char *buf, si
 
 	/* Only do this if SSL is active. */
 	if (sslsock->ssl_active) {
-		int retry = 1;
+		/* We have already returned some buffered data. Don't retry and don't
+		 * block. We're just trying to fill the buffer more, but the stream might
+		 * be empty, so we don't want to wait in vain. */
+		bool supplemental = stream->has_buffered_data;
+		int retry = !supplemental;
 		struct timeval start_time;
 		struct timeval *timeout = NULL;
 		int began_blocked = sslsock->s.is_blocked;
@@ -2077,11 +2114,11 @@ static ssize_t php_openssl_sockop_io(int read, php_stream *stream, char *buf, si
 		}
 
 		/* never use a timeout with non-blocking sockets */
-		if (began_blocked) {
+		if (began_blocked && !supplemental) {
 			timeout = &sslsock->s.timeout;
 		}
 
-		if (timeout) {
+		if (timeout || supplemental) {
 			php_openssl_set_blocking(sslsock, 0);
 		}
 
@@ -2149,13 +2186,15 @@ static ssize_t php_openssl_sockop_io(int read, php_stream *stream, char *buf, si
 					retry = 1;
 				}
 
-				/* Also, on reads, we may get this condition on an EOF. We should check properly. */
 				if (read) {
-					stream->eof = (retry == 0 && errno != EAGAIN && !SSL_pending(sslsock->ssl_handle));
+					/* EOF unless the SSL layer just needs to wait. */
+					stream->eof = (retry == 0
+						&& err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE
+						&& !SSL_pending(sslsock->ssl_handle));
 				}
 
 				/* Don't loop indefinitely in non-blocking mode if no data is available */
-				if (began_blocked == 0) {
+				if (began_blocked == 0 || supplemental) {
 					break;
 				}
 
@@ -2338,7 +2377,7 @@ static int php_openssl_sockop_stat(php_stream *stream, php_stream_statbuf *ssb) 
 static inline int php_openssl_tcp_sockop_accept(php_stream *stream, php_openssl_netstream_data_t *sock,
 		php_stream_xport_param *xparam STREAMS_DC)  /* {{{ */
 {
-	int clisock;
+	php_socket_t clisock;
 	bool nodelay = 0;
 	zval *tmpzval = NULL;
 
@@ -2359,7 +2398,7 @@ static inline int php_openssl_tcp_sockop_accept(php_stream *stream, php_openssl_
 		&xparam->outputs.error_code,
 		nodelay);
 
-	if (clisock >= 0) {
+	if (clisock != SOCK_ERR) {
 		php_openssl_netstream_data_t *clisockdata = (php_openssl_netstream_data_t*) emalloc(sizeof(*clisockdata));
 
 		/* copy underlying tcp fields */

@@ -323,8 +323,11 @@ static void xml_parser_free_ltags(xml_parser *parser)
 {
 	if (parser->ltags) {
 		int inx;
-		for (inx = 0; ((inx < parser->level) && (inx < XML_MAXLEVEL)); inx++)
-			efree(parser->ltags[ inx ]);
+		for (inx = 0; ((inx < parser->level) && (inx < XML_MAXLEVEL)); inx++) {
+			if (parser->ltags[ inx ]) {
+				efree(parser->ltags[ inx ]);
+			}
+		}
 		efree(parser->ltags);
 	}
 }
@@ -614,6 +617,11 @@ static zval *xml_get_ctag(xml_parser *parser)
 	return NULL;
 }
 
+static zend_always_inline bool xml_handler_aborted(void)
+{
+	return EG(exception) != NULL || ZEND_HAS_OOM();
+}
+
 /* {{{ xml_startElementHandler() */
 void xml_startElementHandler(void *userData, const XML_Char *name, const XML_Char **attributes)
 {
@@ -622,6 +630,10 @@ void xml_startElementHandler(void *userData, const XML_Char *name, const XML_Cha
 	zend_string *att, *tag_name, *val;
 
 	if (!parser) {
+		return;
+	}
+
+	if (UNEXPECTED(xml_handler_aborted())) {
 		return;
 	}
 
@@ -647,6 +659,14 @@ void xml_startElementHandler(void *userData, const XML_Char *name, const XML_Cha
 			attributes += 2;
 
 			zend_string_release_ex(att, 0);
+
+			if (ZEND_HAS_OOM()) {
+				zend_string_release_ex(tag_name, false);
+				zval_ptr_dtor(&args[0]);
+				zval_ptr_dtor(&args[1]);
+				zval_ptr_dtor(&args[2]);
+				return;
+			}
 		}
 
 		zend_call_known_fcc(&parser->startElementHandler, /* retval */ NULL, /* param_count */ 3, args, /* named_params */ NULL);
@@ -689,6 +709,13 @@ void xml_startElementHandler(void *userData, const XML_Char *name, const XML_Cha
 				attributes += 2;
 
 				zend_string_release_ex(att, 0);
+
+				if (ZEND_HAS_OOM()) {
+					zend_string_release_ex(tag_name, false);
+					zval_ptr_dtor(&tag);
+					zval_ptr_dtor(&atr);
+					return;
+				}
 			}
 
 			if (atcnt) {
@@ -725,6 +752,10 @@ void xml_endElementHandler(void *userData, const XML_Char *name)
 	xml_parser *parser = (xml_parser *)userData;
 
 	if (!parser) {
+		return;
+	}
+	
+	if (UNEXPECTED(xml_handler_aborted())) {
 		return;
 	}
 
@@ -770,6 +801,7 @@ void xml_endElementHandler(void *userData, const XML_Char *name)
 
 	if ((parser->ltags) && (parser->level <= XML_MAXLEVEL)) {
 		efree(parser->ltags[parser->level-1]);
+		parser->ltags[parser->level-1] = NULL;
 	}
 
 	parser->level--;
@@ -782,6 +814,10 @@ void xml_characterDataHandler(void *userData, const XML_Char *s, int len)
 	xml_parser *parser = (xml_parser *)userData;
 
 	if (!parser) {
+		return;
+	}
+
+	if (UNEXPECTED(xml_handler_aborted())) {
 		return;
 	}
 
@@ -828,16 +864,15 @@ void xml_characterDataHandler(void *userData, const XML_Char *s, int len)
 		zval *myval;
 		/* check if the current tag already has a value - if yes append to that! */
 		if ((myval = zend_hash_find(Z_ARRVAL_P(ctag), ZSTR_KNOWN(ZEND_STR_VALUE))) && Z_TYPE_P(myval) == IS_STRING) {
-			size_t newlen = Z_STRLEN_P(myval) + ZSTR_LEN(decoded_value);
-			Z_STR_P(myval) = zend_string_extend(Z_STR_P(myval), newlen, 0);
+			Z_STR_P(myval) = zend_string_safe_realloc(Z_STR_P(myval), 1, Z_STRLEN_P(myval), ZSTR_LEN(decoded_value), false);
 			strncpy(Z_STRVAL_P(myval) + Z_STRLEN_P(myval) - ZSTR_LEN(decoded_value),
 					ZSTR_VAL(decoded_value), ZSTR_LEN(decoded_value) + 1);
-			zend_string_release_ex(decoded_value, 0);
+			zend_string_release_ex(decoded_value, false);
 		} else {
 			if (doprint || (! parser->skipwhite)) {
 				add_assoc_str(ctag, "value", decoded_value);
 			} else {
-				zend_string_release_ex(decoded_value, 0);
+				zend_string_release_ex(decoded_value, false);
 			}
 		}
 	} else {
@@ -855,11 +890,10 @@ void xml_characterDataHandler(void *userData, const XML_Char *s, int len)
 				if (EXPECTED(Z_TYPE_P(mytype) == IS_STRING) && zend_string_equals_literal(Z_STR_P(mytype), "cdata")) {
 					SEPARATE_ARRAY(curtag);
 					if ((myval = zend_hash_find(Z_ARRVAL_P(curtag), ZSTR_KNOWN(ZEND_STR_VALUE)))) {
-						size_t newlen = Z_STRLEN_P(myval) + ZSTR_LEN(decoded_value);
-						Z_STR_P(myval) = zend_string_extend(Z_STR_P(myval), newlen, 0);
+						Z_STR_P(myval) = zend_string_safe_realloc(Z_STR_P(myval), 1, Z_STRLEN_P(myval), ZSTR_LEN(decoded_value), false);
 						strncpy(Z_STRVAL_P(myval) + Z_STRLEN_P(myval) - ZSTR_LEN(decoded_value),
 								ZSTR_VAL(decoded_value), ZSTR_LEN(decoded_value) + 1);
-						zend_string_release_ex(decoded_value, 0);
+						zend_string_release_ex(decoded_value, false);
 						return;
 					}
 				}
@@ -877,7 +911,7 @@ void xml_characterDataHandler(void *userData, const XML_Char *s, int len)
 		} else if (parser->level == (XML_MAXLEVEL + 1)) {
 								php_error_docref(NULL, E_WARNING, "Maximum depth exceeded - Results truncated");
 		} else {
-			zend_string_release_ex(decoded_value, 0);
+			zend_string_release_ex(decoded_value, false);
 		}
 	}
 }
@@ -1319,6 +1353,12 @@ PHP_FUNCTION(xml_set_element_handler)
 	}
 
 	set_handlers:
+	if (parser->isparsing) {
+		zend_release_fcall_info_cache(&start_fcc);
+		zend_release_fcall_info_cache(&end_fcc);
+		zend_throw_error(NULL, "Cannot change handlers while parsing");
+		RETURN_THROWS();
+	}
 	xml_set_handler(&parser->startElementHandler, &start_fcc);
 	xml_set_handler(&parser->endElementHandler, &end_fcc);
 	XML_SetElementHandler(parser->parser, xml_startElementHandler, xml_endElementHandler);
@@ -1372,6 +1412,11 @@ static void php_xml_set_handler_parse_callable(
 		php_xml_set_handler_parse_callable(INTERNAL_FUNCTION_PARAM_PASSTHRU, &parser, &handler_fcc); \
 		if (EG(exception)) { return; } \
 		ZEND_ASSERT(parser); \
+		if (parser->isparsing) { \
+			zend_release_fcall_info_cache(&handler_fcc); \
+			zend_throw_error(NULL, "Cannot change handlers while parsing"); \
+			RETURN_THROWS(); \
+		} \
 		xml_set_handler(&parser->parser_handler_name, &handler_fcc); \
 		parse_function(parser->parser, c_function); \
 		RETURN_TRUE; \

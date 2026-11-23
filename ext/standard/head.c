@@ -137,12 +137,20 @@ PHPAPI zend_result php_setcookie(zend_string *name, zend_string *value, time_t e
 		smart_str_appends(&buf, "Set-Cookie: ");
 		smart_str_append(&buf, name);
 		smart_str_appendc(&buf, '=');
+		/* The encoded value is up to three copies of the input. */
 		if (url_encode) {
 			zend_string *encoded_value = php_raw_url_encode(ZSTR_VAL(value), ZSTR_LEN(value));
-			smart_str_append(&buf, encoded_value);
+			bool appended = smart_str_fappendl_ex(&buf, ZSTR_VAL(encoded_value),
+					ZSTR_LEN(encoded_value), /* persistent */ false, /* fallible */ true);
 			zend_string_release_ex(encoded_value, 0);
-		} else {
-			smart_str_append(&buf, value);
+			if (UNEXPECTED(!appended)) {
+				smart_str_free(&buf);
+				return FAILURE;
+			}
+		} else if (UNEXPECTED(!smart_str_fappendl_ex(&buf, ZSTR_VAL(value), ZSTR_LEN(value),
+				/* persistent */ false, /* fallible */ true))) {
+			smart_str_free(&buf);
+			return FAILURE;
 		}
 
 		if (expires > 0) {
@@ -205,14 +213,23 @@ static zend_result php_head_parse_cookie_options_array(HashTable *options, zend_
 		if (zend_string_equals_literal_ci(key, "expires")) {
 			*expires = zval_get_long(value);
 		} else if (zend_string_equals_literal_ci(key, "path")) {
+			if (*path) {
+				zend_string_release(*path);
+			}
 			*path = zval_get_string(value);
 		} else if (zend_string_equals_literal_ci(key, "domain")) {
+			if (*domain) {
+				zend_string_release(*domain);
+			}
 			*domain = zval_get_string(value);
 		} else if (zend_string_equals_literal_ci(key, "secure")) {
 			*secure = zval_is_true(value);
 		} else if (zend_string_equals_literal_ci(key, "httponly")) {
 			*httponly = zval_is_true(value);
 		} else if (zend_string_equals_literal_ci(key, "samesite")) {
+			if (*samesite) {
+				zend_string_release(*samesite);
+			}
 			*samesite = zval_get_string(value);
 		} else {
 			zend_value_error("%s(): option \"%s\" is invalid", get_active_function_name(), ZSTR_VAL(key));

@@ -12,8 +12,8 @@ return function (Preprocessor $p) {
             ->withHomePage('https://www.openssl.org/')
             ->withLicense('https://github.com/openssl/openssl/blob/master/LICENSE.txt', Library::LICENSE_APACHE2)
             ->withManual('https://www.openssl.org/docs/')
-            ->withUrl('https://github.com/openssl/openssl/releases/download/openssl-3.6.0/openssl-3.6.0.tar.gz')
-            ->withFileHash('md5', '77ab78417082f22a2ce809898bd44da0')
+            ->withUrl('https://github.com/openssl/openssl/releases/download/openssl-3.6.5/openssl-3.6.5.tar.gz')
+            ->withFileHash('md5', 'e1df3c3fea55e3dc8bcb6b422f436fbc')
             ->withPrefix($openssl_prefix)
             ->withConfigure(
                 <<<EOF

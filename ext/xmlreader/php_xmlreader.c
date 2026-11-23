@@ -91,7 +91,7 @@ static int xmlreader_property_reader(xmlreader_object *obj, xmlreader_prop_handl
 	switch (hnd->type) {
 		case IS_STRING:
 			if (retchar) {
-				ZVAL_STRING(rv, (char *) retchar);
+				ZVAL_FSTRING(rv, (char *) retchar);
 			} else {
 				ZVAL_EMPTY_STRING(rv);
 			}
@@ -441,7 +441,7 @@ static void php_xmlreader_string_arg(INTERNAL_FUNCTION_PARAMETERS, xmlreader_rea
 		retchar = (char *)internal_function(intern->ptr, (const unsigned char *)name);
 	}
 	if (retchar) {
-		RETVAL_STRING(retchar);
+		RETVAL_FSTRING(retchar);
 		xmlFree(retchar);
 		return;
 	} else {
@@ -491,7 +491,7 @@ static void php_xmlreader_no_arg_string(INTERNAL_FUNCTION_PARAMETERS, xmlreader_
 		retchar = (char *)internal_function(intern->ptr);
 	}
 	if (retchar) {
-		RETVAL_STRING(retchar);
+		RETVAL_FSTRING(retchar);
 		xmlFree(retchar);
 		return;
 	} else {
@@ -502,12 +502,7 @@ static void php_xmlreader_no_arg_string(INTERNAL_FUNCTION_PARAMETERS, xmlreader_
 
 /* {{{ php_xmlreader_set_relaxng_schema */
 static void php_xmlreader_set_relaxng_schema(INTERNAL_FUNCTION_PARAMETERS, int type) {
-#ifdef LIBXML_SCHEMAS_ENABLED
-	zval *id;
 	size_t source_len = 0;
-	int retval = -1;
-	xmlreader_object *intern;
-	xmlRelaxNGPtr schema = NULL;
 	char *source;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "p!", &source, &source_len) == FAILURE) {
@@ -518,11 +513,13 @@ static void php_xmlreader_set_relaxng_schema(INTERNAL_FUNCTION_PARAMETERS, int t
 		zend_argument_must_not_be_empty_error(1);
 		RETURN_THROWS();
 	}
-
-	id = ZEND_THIS;
-
-	intern = Z_XMLREADER_P(id);
+	
+#ifdef LIBXML_SCHEMAS_ENABLED
+	xmlreader_object *intern = Z_XMLREADER_P(ZEND_THIS);
 	if (intern->ptr) {
+		int retval = -1;
+		xmlRelaxNGPtr schema = NULL;
+
 		if (source) {
 			schema =  _xmlreader_get_relaxNG(source, source_len, type, NULL, NULL);
 			if (schema) {
@@ -604,7 +601,7 @@ PHP_METHOD(XMLReader, getAttributeNo)
 		retchar = (char *)xmlTextReaderGetAttributeNo(intern->ptr, attr_pos);
 	}
 	if (retchar) {
-		RETVAL_STRING(retchar);
+		RETVAL_FSTRING(retchar);
 		xmlFree(retchar);
 	}
 }
@@ -639,7 +636,7 @@ PHP_METHOD(XMLReader, getAttributeNs)
 		retchar = (char *)xmlTextReaderGetAttributeNs(intern->ptr, (xmlChar *)name, (xmlChar *)ns_uri);
 	}
 	if (retchar) {
-		RETVAL_STRING(retchar);
+		RETVAL_FSTRING(retchar);
 		xmlFree(retchar);
 	}
 }
@@ -1064,11 +1061,7 @@ PHP_METHOD(XMLReader, readString)
 /* {{{ Use W3C XSD schema to validate the document as it is processed. Activation is only possible before the first Read(). */
 PHP_METHOD(XMLReader, setSchema)
 {
-#ifdef LIBXML_SCHEMAS_ENABLED
-	zval *id;
 	size_t source_len = 0;
-	int retval = -1;
-	xmlreader_object *intern;
 	char *source;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "p!", &source, &source_len) == FAILURE) {
@@ -1079,13 +1072,12 @@ PHP_METHOD(XMLReader, setSchema)
 		zend_argument_must_not_be_empty_error(1);
 		RETURN_THROWS();
 	}
-
-	id = ZEND_THIS;
-
-	intern = Z_XMLREADER_P(id);
+	
+#ifdef LIBXML_SCHEMAS_ENABLED
+	xmlreader_object *intern = Z_XMLREADER_P(ZEND_THIS);
 	if (intern && intern->ptr) {
 		PHP_LIBXML_SANITIZE_GLOBALS(schema);
-		retval = xmlTextReaderSchemaValidate(intern->ptr, source);
+		int retval = xmlTextReaderSchemaValidate(intern->ptr, source);
 		PHP_LIBXML_RESTORE_GLOBALS(schema);
 
 		if (retval == 0) {

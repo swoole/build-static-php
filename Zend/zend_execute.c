@@ -4083,6 +4083,8 @@ ZEND_API ZEND_COLD void ZEND_FASTCALL zend_fcall_interrupt(zend_execute_data *ca
 	zend_atomic_bool_store_ex(&EG(vm_interrupt), false);
 	if (zend_atomic_bool_load_ex(&EG(timed_out))) {
 		zend_timeout();
+	} else if (ZEND_HAS_OOM()) {
+		zend_handle_delayed_oom();
 	} else if (zend_interrupt_function) {
 		zend_interrupt_function(call);
 	}
@@ -4673,19 +4675,17 @@ static void cleanup_unfinished_calls(zend_execute_data *execute_data, uint32_t o
 }
 /* }}} */
 
-static const zend_live_range *find_live_range(const zend_op_array *op_array, uint32_t op_num, uint32_t var_num) /* {{{ */
+/* Same as cleanup_unfinished_calls(), but only free the call frames. */
+static void free_unfinished_calls(zend_execute_data *execute_data)
 {
-	int i;
-	for (i = 0; i < op_array->last_live_range; i++) {
-		const zend_live_range *range = &op_array->live_range[i];
-		if (op_num >= range->start && op_num < range->end
-				&& var_num == (range->var & ~ZEND_LIVE_MASK)) {
-			return range;
-		}
+	zend_execute_data *call = EX(call);
+
+	while (UNEXPECTED(call != NULL)) {
+		EX(call) = call->prev_execute_data;
+		zend_vm_stack_free_call_frame(call);
+		call = EX(call);
 	}
-	return NULL;
 }
-/* }}} */
 
 static void cleanup_live_vars(zend_execute_data *execute_data, uint32_t op_num, uint32_t catch_op_num) /* {{{ */
 {
@@ -4701,6 +4701,16 @@ static void cleanup_live_vars(zend_execute_data *execute_data, uint32_t op_num, 
 				uint32_t kind = range->var & ZEND_LIVE_MASK;
 				uint32_t var_num = range->var & ~ZEND_LIVE_MASK;
 				zval *var = EX_VAR(var_num);
+
+				/* Handle the split range for loop vars */
+				if (catch_op_num) {
+					zend_op *final_op = EX(func)->op_array.opcodes + range->end;
+					if (final_op->extended_value & ZEND_FREE_ON_RETURN && (final_op->opcode == ZEND_FE_FREE || final_op->opcode == ZEND_FREE)) {
+						if (catch_op_num < range->end + final_op->op2.num) {
+							continue;
+						}
+					}
+				}
 
 				if (kind == ZEND_LIVE_TMPVAR) {
 					zval_ptr_dtor_nogc(var);

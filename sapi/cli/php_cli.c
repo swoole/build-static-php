@@ -138,7 +138,6 @@ const opt_struct OPTIONS[] = {
 	{'m', 0, "modules"},
 	{'n', 0, "no-php-ini"},
 	{'P', 0, "fpm"},
-	{'U', 0, "self-update"},
 	{'q', 0, "no-header"}, /* for compatibility with CGI (do not generate HTTP headers) */
 	{'R', 1, "process-code"},
 	{'H', 0, "hide-args"},
@@ -361,6 +360,15 @@ static void sapi_cli_log_message(const char *message, int syslog_type_int) /* {{
 }
 /* }}} */
 
+static int sapi_cli_activate(void) /* {{{ */
+{
+#if defined(PHP_WIN32) && defined(ZTS)
+	ZEND_TSRMLS_CACHE_UPDATE();
+#endif
+	return SUCCESS;
+}
+/* }}} */
+
 static int sapi_cli_deactivate(void) /* {{{ */
 {
 	fflush(stdout);
@@ -425,7 +433,7 @@ static sapi_module_struct cli_sapi_module = {
 	php_cli_startup,				/* startup */
 	php_module_shutdown_wrapper,	/* shutdown */
 
-	NULL,							/* activate */
+	sapi_cli_activate,				/* activate */
 	sapi_cli_deactivate,			/* deactivate */
 
 	sapi_cli_ub_write,		    	/* unbuffered write */
@@ -452,6 +460,30 @@ static sapi_module_struct cli_sapi_module = {
 /* }}} */
 
 #include "php_cli_swoole.h"
+
+void show_swoole_version(void)
+{
+	php_printf("Swoole %s (%s) (built: %s %s) (%s)\n",
+		SWOOLE_VERSION, cli_sapi_module.name, __DATE__, __TIME__,
+#ifdef ZTS
+		"ZTS"
+#else
+		"NTS"
+#endif
+#ifdef PHP_BUILD_COMPILER
+		" " PHP_BUILD_COMPILER
+#endif
+#ifdef PHP_BUILD_ARCH
+		" " PHP_BUILD_ARCH
+#endif
+#if ZEND_DEBUG
+		" DEBUG"
+#endif
+#ifdef HAVE_GCOV
+		" GCOV"
+#endif
+	);
+}
 
 static const zend_function_entry additional_functions[] = {
 	PHP_FE(cli_set_process_title,        arginfo_cli_set_process_title)
@@ -498,7 +530,6 @@ static void php_cli_usage(char *argv0)
 				"  -E <end_code>    Run PHP <end_code> after processing all input lines\n"
 				"  -H               Hide any passed arguments from external tools.\n"
 				"  -S <addr>:<port> Run with built-in web server.\n"
-				"  -U               Update swoole-cli to the latest version\n"
 				"  -t <docroot>     Specify document root <docroot> for built-in web server.\n"
 				"  -W <worker_num>  Specify number of workers <worker_num> for built-in web server.\n"
 				"  -o <log_file>    Specify log file path <log_file> for built-in web server.\n"
@@ -652,16 +683,6 @@ static int do_cli(int argc, char **argv) /* {{{ */
 				php_printf("\n[Zend Modules]\n");
 				print_extensions();
 				php_printf("\n");
-				php_output_end_all();
-				EG(exit_status) = 0;
-				goto out;
-
-			case 'U': /* self update */
-				if (php_request_startup() == FAILURE) {
-				    goto err;
-				}
-				request_started = 1;
-				swoole_cli_self_update();
 				php_output_end_all();
 				EG(exit_status) = 0;
 				goto out;

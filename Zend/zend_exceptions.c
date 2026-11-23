@@ -103,7 +103,9 @@ void zend_exception_set_previous(zend_object *exception, zend_object *add_previo
 		return;
 	}
 
-	if (exception == add_previous || zend_is_unwind_exit(add_previous) || zend_is_graceful_exit(add_previous)) {
+	if (exception == add_previous
+	 || zend_is_unwind_exit(exception) || zend_is_graceful_exit(exception)
+	 || zend_is_unwind_exit(add_previous) || zend_is_graceful_exit(add_previous)) {
 		OBJ_RELEASE(add_previous);
 		return;
 	}
@@ -888,14 +890,13 @@ ZEND_API ZEND_COLD zend_object *zend_throw_exception(zend_class_entry *exception
 ZEND_API ZEND_COLD zend_object *zend_throw_exception_ex(zend_class_entry *exception_ce, zend_long code, const char *format, ...) /* {{{ */
 {
 	va_list arg;
-	char *message;
 	zend_object *obj;
 
 	va_start(arg, format);
-	zend_vspprintf(&message, 0, format, arg);
+	zend_string *msg_str = zend_vstrpprintf(0, format, arg);
 	va_end(arg);
-	obj = zend_throw_exception(exception_ce, message, code);
-	efree(message);
+	obj = zend_throw_exception_zstr(exception_ce, msg_str, code);
+	zend_string_release(msg_str);
 	return obj;
 }
 /* }}} */

@@ -55,7 +55,11 @@ static ssize_t php_stream_memory_write(php_stream *stream, const char *buf, size
 		ms->fpos = data_len;
 	}
 	if (ms->fpos + count > data_len) {
-		ms->data = zend_string_realloc(ms->data, ms->fpos + count, 0);
+		zend_string *grown = zend_string_frealloc(ms->data, ms->fpos + count, 0, /* fallible */ true);
+		if (UNEXPECTED(!grown)) {
+			return (ssize_t) -1;
+		}
+		ms->data = grown;
 		if (ms->fpos > data_len) {
 			/* zero the bytes added due to seek past end position */
 			memset(ZSTR_VAL(ms->data) + data_len, 0, ms->fpos - data_len);
@@ -239,16 +243,24 @@ static int php_stream_memory_set_option(php_stream *stream, int option, int valu
 					}
 					newsize = *(size_t*)ptrparam;
 					if (newsize <= ZSTR_LEN(ms->data)) {
-						ms->data = zend_string_truncate(ms->data, newsize, 0);
+						zend_string *new_data = zend_string_ftruncate(ms->data, newsize, 0, /* fallible */ true);
+						if (UNEXPECTED(!new_data)) {
+							return PHP_STREAM_OPTION_RETURN_ERR;
+						}
+						ms->data = new_data;
 						if (newsize < ms->fpos) {
 							ms->fpos = newsize;
 						}
 					} else {
 						size_t old_size = ZSTR_LEN(ms->data);
-						ms->data = zend_string_realloc(ms->data, newsize, 0);
+						zend_string *new_data = zend_string_frealloc(ms->data, newsize, 0, /* fallible */ true);
+						if (UNEXPECTED(!new_data)) {
+							return PHP_STREAM_OPTION_RETURN_ERR;
+						}
+						ms->data = new_data;
 						memset(ZSTR_VAL(ms->data) + old_size, 0, newsize - old_size);
-						ZSTR_VAL(ms->data)[ZSTR_LEN(ms->data)] = '\0';
 					}
+					ZSTR_VAL(ms->data)[ZSTR_LEN(ms->data)] = '\0';
 					return PHP_STREAM_OPTION_RETURN_OK;
 			}
 	}
@@ -615,7 +627,8 @@ static php_stream * php_stream_url_wrap_rfc2397(php_stream_wrapper *wrapper, con
 {
 	php_stream *stream;
 	php_stream_temp_data *ts;
-	char *comma, *semi, *sep;
+	char *comma;
+	const char *semi, *sep;
 	size_t mlen, dlen, plen, vlen, ilen;
 	zend_off_t newoffs;
 	zval meta;
@@ -637,7 +650,7 @@ static php_stream * php_stream_url_wrap_rfc2397(php_stream_wrapper *wrapper, con
 		path += 2;
 	}
 
-	if ((comma = memchr(path, ',', dlen)) == NULL) {
+	if ((comma = (char *) memchr(path, ',', dlen)) == NULL) {
 		php_stream_wrapper_log_error(wrapper, options, "rfc2397: no comma in URL");
 		return NULL;
 	}

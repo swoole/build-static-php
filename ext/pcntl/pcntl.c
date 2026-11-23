@@ -29,8 +29,10 @@
 
 #include "php.h"
 #include "ext/standard/info.h"
+#include "ext/standard/php_filestat.h"
 #include "php_signal.h"
 #include "php_ticks.h"
+#include "zend_exceptions.h"
 #include "zend_fibers.h"
 
 #if defined(HAVE_GETPRIORITY) || defined(HAVE_SETPRIORITY) || defined(HAVE_WAIT3)
@@ -93,7 +95,7 @@ typedef cpuset_t *cpu_set_t;
 #elif defined(HAVE_PSET_BIND)
 #include <sys/pset.h>
 typedef psetid_t cpu_set_t;
- #define sched_getaffinity(p, c, m) pset_bind(PS_QUERY, P_PID, (p <= 0 ? getpid() : p), &m)
+ #define sched_getaffinity(p, c, m) pset_bind(PS_QUERY, P_PID, p, &m)
  #define sched_setaffinity(p, c, m) pset_bind(m, P_PID, (p <= 0 ? getpid() : p), NULL)
  #define PCNTL_CPUSET(mask) mask
  #define PCNTL_CPU_ISSET(i, mask) (pset_assign(PS_QUERY, (processorid_t)i, &query) == 0 && query == mask)
@@ -293,6 +295,7 @@ PHP_FUNCTION(pcntl_fork)
 		}
 	} else if (id == 0) {
 		zend_max_execution_timer_init();
+		php_clear_stat_cache(true, NULL, 0);
 	}
 
 	RETURN_LONG((zend_long) id);
@@ -798,15 +801,16 @@ PHP_FUNCTION(pcntl_signal)
 		RETURN_THROWS();
 	}
 
-	/* Add the function name to our signal table */
-	handle = zend_hash_index_update(&PCNTL_G(php_signal_table), signo, handle);
-	Z_TRY_ADDREF_P(handle);
-
+	/* Register with the OS first so that on failure we don't record a handler that was never installed */
 	if (php_signal4(signo, pcntl_signal_handler, (int) restart_syscalls, 1) == (void *)SIG_ERR) {
 		PCNTL_G(last_error) = errno;
 		php_error_docref(NULL, E_WARNING, "Error assigning signal");
 		RETURN_FALSE;
 	}
+
+	/* Add the function name to our signal table */
+	handle = zend_hash_index_update(&PCNTL_G(php_signal_table), signo, handle);
+	Z_TRY_ADDREF_P(handle);
 	RETURN_TRUE;
 }
 /* }}} */
@@ -1317,6 +1321,9 @@ void pcntl_signal_dispatch(void)
 {
 	zval params[2], *handle, retval;
 	struct php_pcntl_pending_signal *queue, *next;
+	zend_object *old_exception;
+	const zend_op *old_opline_before_exception = NULL;
+	const zend_op *old_opline = NULL;
 	sigset_t mask;
 	sigset_t old_mask;
 
@@ -1342,9 +1349,26 @@ void pcntl_signal_dispatch(void)
 
 	queue = PCNTL_G(head);
 	PCNTL_G(head) = NULL; /* simple stores are atomic */
+	PCNTL_G(tail) = NULL;
+
+	/* Dispatching can happen with an exception pending, e.g. from the interrupt check that runs
+	 * right after an internal function threw. call_user_function() does nothing in that state,
+	 * so set the exception aside while the handlers run. The frame is left as found: depending
+	 * on the caller, the exception may not be registered on it yet, or may already be on its
+	 * way to a catch block, and the caller takes it from there once we return. */
+	old_exception = EG(exception);
+	if (old_exception) {
+		if (EG(current_execute_data)) {
+			old_opline = EG(current_execute_data)->opline;
+		}
+		old_opline_before_exception = EG(opline_before_exception);
+		EG(exception) = NULL;
+	}
 
 	/* Allocate */
 	while (queue) {
+		bool handler_threw = false;
+
 		if ((handle = zend_hash_index_find(&PCNTL_G(php_signal_table), queue->signo)) != NULL) {
 			if (Z_TYPE_P(handle) != IS_LONG) {
 				ZVAL_NULL(&retval);
@@ -1363,6 +1387,7 @@ void pcntl_signal_dispatch(void)
 #ifdef HAVE_STRUCT_SIGINFO_T
 				zval_ptr_dtor(&params[1]);
 #endif
+				handler_threw = NULL != EG(exception);
 			}
 		}
 
@@ -1370,9 +1395,44 @@ void pcntl_signal_dispatch(void)
 		queue->next = PCNTL_G(spares);
 		PCNTL_G(spares) = queue;
 		queue = next;
+
+		/* No other handler can be called while the exception propagates */
+		if (handler_threw) {
+			break;
+		}
 	}
 
-	PCNTL_G(pending_signals) = 0;
+	if (old_exception) {
+		if (EG(current_execute_data)) {
+			EG(current_execute_data)->opline = old_opline;
+		}
+		EG(opline_before_exception) = old_opline_before_exception;
+		if (EG(exception)) {
+			zend_exception_set_previous(EG(exception), old_exception);
+		} else {
+			EG(exception) = old_exception;
+		}
+	}
+
+	if (UNEXPECTED(queue)) {
+		/* Put back what the throwing handler did not get to, instead of dropping it, and ask
+		 * the engine to come back once the exception has been handled. Signals are still
+		 * blocked here, so PCNTL_G(head) cannot have been repopulated in the meantime. */
+		next = queue;
+
+		while (next->next) {
+			next = next->next;
+		}
+
+		PCNTL_G(head) = queue;
+		PCNTL_G(tail) = next;
+
+		if (PCNTL_G(async_signals)) {
+			zend_atomic_bool_store_ex(&EG(vm_interrupt), true);
+		}
+	} else {
+		PCNTL_G(pending_signals) = 0;
+	}
 
 	/* Re-enable queue */
 	PCNTL_G(processing_signal_queue) = 0;
@@ -1515,6 +1575,7 @@ PHP_FUNCTION(pcntl_rfork)
 		}
 	} else if (pid == 0) {
 		zend_max_execution_timer_init();
+		php_clear_stat_cache(true, NULL, 0);
 	}
 
 	RETURN_LONG((zend_long) pid);
@@ -1560,6 +1621,7 @@ PHP_FUNCTION(pcntl_forkx)
 		}
 	} else if (pid == 0) {
 		zend_max_execution_timer_init();
+		php_clear_stat_cache(true, NULL, 0);
 	}
 
 	RETURN_LONG((zend_long) pid);
@@ -1584,7 +1646,7 @@ PHP_FUNCTION(pcntl_setns)
 
 	pid = pid_is_null ? getpid() : pid;
 	fd = syscall(SYS_pidfd_open, pid, 0);
-	if (errno) {
+	if (fd == -1) {
 		PCNTL_G(last_error) = errno;
 		switch (errno) {
 			case EINVAL:
@@ -1610,11 +1672,12 @@ PHP_FUNCTION(pcntl_setns)
 		RETURN_FALSE;
 	}
 	ret = setns(fd, (int)nstype);
+	int setns_errno = errno;
 	close(fd);
 
 	if (ret == -1) {
-		PCNTL_G(last_error) = errno;
-		switch (errno) {
+		PCNTL_G(last_error) = setns_errno;
+		switch (setns_errno) {
 			case ESRCH:
 				zend_argument_value_error(1, "process no longer available (" ZEND_LONG_FMT ")", pid);
 				RETURN_THROWS();
@@ -1624,11 +1687,11 @@ PHP_FUNCTION(pcntl_setns)
 				RETURN_THROWS();
 
 			case EPERM:
-				php_error_docref(NULL, E_WARNING, "Error %d: No required capability for this process", errno);
+				php_error_docref(NULL, E_WARNING, "Error %d: No required capability for this process", setns_errno);
 				break;
 
 			default:
-			        php_error_docref(NULL, E_WARNING, "Error %d", errno);
+			        php_error_docref(NULL, E_WARNING, "Error %d", setns_errno);
 		}
 		RETURN_FALSE;
 	} else {
@@ -1732,7 +1795,8 @@ PHP_FUNCTION(pcntl_setcpuaffinity)
 		}
 
 		if (cpu < 0 || cpu >= maxcpus) {
-			zend_argument_value_error(2, "cpu id must be between 0 and " ZEND_ULONG_FMT " (" ZEND_LONG_FMT ")", maxcpus, cpu);
+			zend_argument_value_error(2, "cpu id must be between 0 and " ZEND_LONG_FMT " (" ZEND_LONG_FMT ")", maxcpus - 1, cpu);
+			PCNTL_CPU_DESTROY(mask);
 			RETURN_THROWS();
 		}
 
@@ -1838,13 +1902,14 @@ PHP_FUNCTION(pcntl_getqos_class)
 
 PHP_FUNCTION(pcntl_setqos_class)
 {
-	zval *qos_obj;
+	zval *qos_obj = NULL;
 
-	ZEND_PARSE_PARAMETERS_START(1, 1)
+	ZEND_PARSE_PARAMETERS_START(0, 1)
+		Z_PARAM_OPTIONAL
 		Z_PARAM_OBJECT_OF_CLASS(qos_obj, QosClass_ce)
 	ZEND_PARSE_PARAMETERS_END();
 
-	qos_class_t qos_class = qos_zval_to_lval(qos_obj);
+	qos_class_t qos_class = qos_obj ? qos_zval_to_lval(qos_obj) : QOS_CLASS_DEFAULT;
 
 	if (UNEXPECTED(pthread_set_qos_class_self_np((qos_class_t)qos_class, 0) != 0))
 	{

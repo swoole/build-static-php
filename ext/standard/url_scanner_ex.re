@@ -85,7 +85,7 @@ static zend_result php_ini_on_update_tags(zend_ini_entry *entry, zend_string *ne
 
 			*val++ = '\0';
 			for (q = key; *q; q++) {
-				*q = tolower(*q);
+				*q = tolower((unsigned char)*q);
 			}
 			keylen = q - key;
 			str = zend_string_init(key, keylen, 1);
@@ -137,7 +137,7 @@ static zend_result php_ini_on_update_hosts(zend_ini_entry *entry, zend_string *n
 		char *q;
 
 		for (q = key; *q; q++) {
-			*q = tolower(*q);
+			*q = tolower((unsigned char)*q);
 		}
 		keylen = q - key;
 		if (keylen > 0) {
@@ -463,7 +463,7 @@ static inline void handle_tag(STD_PARA)
 	}
 	smart_str_appendl(&ctx->tag, start, YYCURSOR - start);
 	for (i = 0; i < ZSTR_LEN(ctx->tag.s); i++)
-		ZSTR_VAL(ctx->tag.s)[i] = tolower((int)(unsigned char)ZSTR_VAL(ctx->tag.s)[i]);
+		ZSTR_VAL(ctx->tag.s)[i] = tolower((unsigned char)ZSTR_VAL(ctx->tag.s)[i]);
     /* intentionally using str_find here, in case the hash value is set, but the string val is changed later */
 	if ((ctx->lookup_data = zend_hash_str_find_ptr(ctx->tags, ZSTR_VAL(ctx->tag.s), ZSTR_LEN(ctx->tag.s))) != NULL) {
 		ok = 1;
@@ -681,6 +681,13 @@ static void php_url_scanner_ex_deactivate(bool is_session)
 	smart_str_free(&ctx->tag);
 	smart_str_free(&ctx->arg);
 	smart_str_free(&ctx->attr_val);
+}
+
+void php_url_scanner_early_rinit(void)
+{
+	/* See php_basic_early_rinit() */
+	php_url_scanner_ex_activate(1);
+	php_url_scanner_ex_activate(0);
 }
 
 static inline void php_url_scanner_session_handler_impl(char *output, size_t output_len, char **handled_output, size_t *handled_output_len, int mode, bool is_session)

@@ -204,7 +204,14 @@ static struct gfxinfo *php_handle_swc(php_stream * stream)
 
 		do {
 			szlength = ZSTR_LEN(bufz) * (1<<factor++);
-			buf = erealloc(buf, szlength);
+			unsigned char *new_buf = safe_ferealloc(buf, 1, szlength, 0, /* fallible */ true);
+			if (UNEXPECTED(!new_buf)) {
+				efree(b);
+				zend_string_release_ex(bufz, 0);
+				efree(buf);
+				return NULL;
+			}
+			buf = new_buf;
 			status = uncompress(buf, &szlength, (unsigned char *) ZSTR_VAL(bufz), ZSTR_LEN(bufz));
 		} while ((status==Z_BUF_ERROR)&&(factor<maxfactor));
 
@@ -403,6 +410,7 @@ static size_t php_read_stream_all_chunks(php_stream *stream, char *buffer, size_
 		if (read_now < stream->chunk_size && read_total != length) {
 			return 0;
 		}
+		buffer += read_now;
 	} while (read_total < length);
 
 	return read_total;
@@ -874,6 +882,9 @@ static struct gfxinfo *php_handle_iff(php_stream * stream)
 			return NULL;
 		}
 		if ((size & 1) == 1) {
+			if (size == INT_MAX) {
+				return NULL;
+			}
 			size++;
 		}
 		if (chunkId == 0x424d4844) { /* BMHD chunk */
@@ -999,6 +1010,12 @@ static int php_get_xbm(php_stream *stream, struct gfxinfo **result)
 		return 0;
 	}
 	while ((fline=php_stream_gets(stream, NULL, 0)) != NULL) {
+		/* The line is bounded by the stream, and iname duplicates it. */
+		if (ZEND_HAS_OOM()) {
+			efree(fline);
+			fline = NULL;
+			break;
+		}
 		iname = estrdup(fline); /* simple way to get necessary buffer of required size */
 		if (sscanf(fline, "#define %s %d", iname, &value) == 2) {
 			if (!(type = strrchr(iname, '_'))) {

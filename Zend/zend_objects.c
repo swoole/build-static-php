@@ -116,12 +116,12 @@ ZEND_API void zend_objects_destroy_object(zend_object *object)
 	zend_function *destructor = object->ce->destructor;
 
 	if (destructor) {
-		if (UNEXPECTED(zend_object_is_lazy(object))) {
+		if (UNEXPECTED(zend_object_is_lazy(object) || ZEND_HAS_OOM())) {
 			return;
 		}
 
 		zend_object *old_exception;
-		const zend_op *old_opline_before_exception;
+		const zend_op *old_opline_before_exception = NULL;
 
 		if (destructor->op_array.fn_flags & (ZEND_ACC_PRIVATE|ZEND_ACC_PROTECTED)) {
 			if (destructor->op_array.fn_flags & ZEND_ACC_PRIVATE) {
@@ -180,13 +180,15 @@ ZEND_API void zend_objects_destroy_object(zend_object *object)
 			if (EG(exception) == object) {
 				zend_error_noreturn(E_CORE_ERROR, "Attempt to destruct pending exception");
 			} else {
-				if (EG(current_execute_data)
-				 && EG(current_execute_data)->func
-				 && ZEND_USER_CODE(EG(current_execute_data)->func->common.type)) {
-					zend_rethrow_exception(EG(current_execute_data));
+				if (EG(current_execute_data)) {
+					if (EG(current_execute_data)->func
+					 && ZEND_USER_CODE(EG(current_execute_data)->func->common.type)) {
+						zend_rethrow_exception(EG(current_execute_data));
+					}
+					EG(current_execute_data)->opline = EG(opline_before_exception);
+					old_opline_before_exception = EG(opline_before_exception);
 				}
 				old_exception = EG(exception);
-				old_opline_before_exception = EG(opline_before_exception);
 				EG(exception) = NULL;
 			}
 		}
@@ -194,7 +196,10 @@ ZEND_API void zend_objects_destroy_object(zend_object *object)
 		zend_call_known_instance_method_with_0_params(destructor, object, NULL);
 
 		if (old_exception) {
-			EG(opline_before_exception) = old_opline_before_exception;
+			if (EG(current_execute_data)) {
+				EG(current_execute_data)->opline = EG(exception_op);
+				EG(opline_before_exception) = old_opline_before_exception;
+			}
 			if (EG(exception)) {
 				zend_exception_set_previous(EG(exception), old_exception);
 			} else {
@@ -210,6 +215,18 @@ ZEND_API zend_object* ZEND_FASTCALL zend_objects_new(zend_class_entry *ce)
 	zend_object *object = emalloc(sizeof(zend_object) + zend_object_properties_size(ce));
 
 	_zend_object_std_init(object, ce);
+	return object;
+}
+
+ZEND_API zend_object* ZEND_FASTCALL zend_objects_fnew(zend_class_entry *ce)
+{
+	zend_object *object = femalloc(sizeof(zend_object) + zend_object_properties_size(ce), /* fallible */ true);
+	if (UNEXPECTED(!object)) {
+		return NULL;
+	}
+
+	_zend_object_std_init(object, ce);
+	object->handlers = &std_object_handlers;
 	return object;
 }
 

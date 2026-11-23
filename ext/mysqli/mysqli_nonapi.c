@@ -134,6 +134,8 @@ void mysqli_common_connect(INTERNAL_FUNCTION_PARAMETERS, bool is_real_connect, b
 	{
 		/* already connected, we should close the connection */
 		php_mysqli_close(mysql, MYSQLI_CLOSE_IMPLICIT, mysqli_resource->status);
+		/* the link is not connected anymore, even if the new connection fails */
+		mysqli_resource->status = MYSQLI_STATUS_INITIALIZED;
 	}
 
 	if (strlen(SAFE_STR(hostname)) > 2 && !strncasecmp(hostname, "p:", 2)) {
@@ -1018,6 +1020,7 @@ PHP_FUNCTION(mysqli_begin_transaction)
 	}
 
 	if (FAIL == mysqlnd_begin_transaction(mysql->mysql, flags, name)) {
+		MYSQLI_REPORT_MYSQL_ERROR(mysql->mysql);
 		RETURN_FALSE;
 	}
 	RETURN_TRUE;
@@ -1042,6 +1045,7 @@ PHP_FUNCTION(mysqli_savepoint)
 	}
 
 	if (FAIL == mysqlnd_savepoint(mysql->mysql, name)) {
+		MYSQLI_REPORT_MYSQL_ERROR(mysql->mysql);
 		RETURN_FALSE;
 	}
 	RETURN_TRUE;
@@ -1065,6 +1069,7 @@ PHP_FUNCTION(mysqli_release_savepoint)
 		RETURN_THROWS();
 	}
 	if (FAIL == mysqlnd_release_savepoint(mysql->mysql, name)) {
+		MYSQLI_REPORT_MYSQL_ERROR(mysql->mysql);
 		RETURN_FALSE;
 	}
 	RETURN_TRUE;

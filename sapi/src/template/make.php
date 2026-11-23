@@ -15,15 +15,20 @@ ROOT=<?= $this->getRootDir() . PHP_EOL ?>
 PREPARE_ARGS="<?= implode(' ', $this->getPrepareArgs())?>"
 export LOGICAL_PROCESSORS=<?= trim($this->logicalProcessors). PHP_EOL ?>
 export CMAKE_BUILD_PARALLEL_LEVEL=<?= $this->maxJob. PHP_EOL ?>
-<?php if ($this->isMacos()) :?>
+<?php if ($this->isMacos() && !$this->isIphoneOs()) :?>
 # 兼容 最低 macOS 版本
 export MACOSX_DEPLOYMENT_TARGET=12.0
 <?php endif; ?>
-export CC=<?= $this->cCompiler . PHP_EOL ?>
-export CXX=<?= $this->cppCompiler . PHP_EOL ?>
-export LD=<?= $this->lld . PHP_EOL ?>
+export CC=<?= escapeshellarg($this->cCompiler) . PHP_EOL ?>
+export CXX=<?= escapeshellarg($this->cppCompiler) . PHP_EOL ?>
+export LD=<?= escapeshellarg($this->lld) . PHP_EOL ?>
 
 export PKG_CONFIG_PATH=<?= implode(':', $this->pkgConfigPaths) . PHP_EOL ?>
+<?php if ($this->isMobileTarget()) : ?>
+# Cross builds must never discover libraries from the build host.
+export PKG_CONFIG_PATH=<?= $this->getGlobalPrefix() ?>/gmp/lib/pkgconfig:<?= $this->getGlobalPrefix() ?>/mpfr/lib/pkgconfig
+export PKG_CONFIG_LIBDIR=$PKG_CONFIG_PATH
+<?php endif; ?>
 export PATH=<?= implode(':', $this->binPaths) . PHP_EOL ?>
 
 OPTIONS="--disable-all \
@@ -32,6 +37,8 @@ OPTIONS="--disable-all \
     --without-valgrind \
     --with-config-file-path=<?= $this->getGlobalPrefix() ?>/etc/ \
     --with-config-file-scan-dir=<?= $this->getGlobalPrefix() ?>/etc/conf.d/ \
+    --enable-zts \
+    --enable-embed \
 <?php foreach ($this->extensionList as $item) : ?>
     <?=$item->options?> \
 <?php endforeach; ?>
@@ -41,6 +48,9 @@ OPTIONS="--disable-all \
 <?php foreach ($this->libraryList as $item) : ?>
 make_<?=$item->name?>() {
     echo "build <?=$item->name?>"
+<?php if ($this->isMobileTarget()) : ?>
+    export_variables
+<?php endif; ?>
 
     <?php if (in_array($this->buildType, ['dev', 'debug'])) : ?>
     set -x
@@ -250,8 +260,8 @@ make_config() {
     before_configure_script
     cd <?= $this->getWorkDir() . PHP_EOL ?>
     test -f ./configure &&  rm ./configure
-    ./buildconf --force
-<?php if ($this->isLinux()) : ?>
+    ./buildconf --force || { echo "[make.sh] buildconf failed" >&2; exit 1; }
+<?php if ($this->isLinux() && !$this->isAndroid()) : ?>
     mv main/php_config.h.in /tmp/cnt
     echo -ne '#ifndef __PHP_CONFIG_H\n#define __PHP_CONFIG_H\n' > main/php_config.h.in
     cat /tmp/cnt >> main/php_config.h.in
@@ -266,9 +276,21 @@ make_config() {
     echo $CPPFLAGS > <?= $this->getWorkDir() ?>/cppflags.log
     echo $LIBS > <?= $this->getWorkDir() ?>/libs.log
 
-    ./configure $OPTIONS
+    ./configure $OPTIONS || { echo "[make.sh] configure failed" >&2; exit 1; }
 
-<?php if ($this->isLinux()) : ?>
+<?php if ($this->isAndroid()) : ?>
+    # Bionic exposes only part of the resolver API expected by PHP. In
+    # particular dn_skipname and the glibc-compatible re-entrant state API are
+    # unavailable. Disable all resolver variants together so PHP does not
+    # register dns_get_record()/dns_get_mx() without their implementations.
+    sed -i \
+        -e 's/^#define HAVE_RES_NSEARCH 1$/\/\* #undef HAVE_RES_NSEARCH \*\//' \
+        -e 's/^#define HAVE_RES_SEARCH 1$/\/\* #undef HAVE_RES_SEARCH \*\//' \
+        -e 's/^#define HAVE_DN_SKIPNAME 1$/\/\* #undef HAVE_DN_SKIPNAME \*\//' \
+        main/php_config.h
+<?php endif ; ?>
+
+<?php if ($this->isLinux() && !$this->isAndroid()) : ?>
     sed -i.backup 's/-export-dynamic/-all-static/g' Makefile
 <?php endif ; ?>
 }
@@ -296,15 +318,67 @@ make_build() {
     unset NO_PROXY
     <?php endif ;?>
 
-<?php if ($this->isMacos()) : ?>
+<?php if ($this->isMacos() && !$this->isIphoneOs()) : ?>
     xattr -cr <?= $this->getWorkDir() ?>/bin/swoole-cli
     otool -L <?= $this->getWorkDir() ?>/bin/swoole-cli
-<?php else : ?>
+<?php elseif (!$this->isMobileTarget()) : ?>
     { ldd  <?= $this->getWorkDir() ?>/bin/swoole-cli ; } || { echo $? ; }
     file <?= $this->getWorkDir() ?>/bin/swoole-cli
     readelf -h <?= $this->getWorkDir() ?>/bin/swoole-cli
     { readelf -l <?= $this->getWorkDir() ?>/bin/swoole-cli ; } || { echo $? ; }
     { objdump -p <?= $this->getWorkDir() ?>/bin/swoole-cli ; } || { echo $? ; }
+<?php endif; ?>
+}
+
+make_libphp() {
+    cd <?= $this->getWorkDir() . PHP_EOL ?>
+    export_variables
+<?php if ($this->isIphoneOs()) : ?>
+    # PHP object files live in the shared source tree. Rebuild them when
+    # switching between device and simulator, even if source dates are older.
+    ios_object_target=<?= $this->isIphoneSimulator() ? 'iphonesimulator-arm64' : 'iphoneos-arm64' ?>
+    ios_object_marker=var/.typephp-ios-object-target
+    ios_previous_target=$(cat "$ios_object_marker" 2>/dev/null || true)
+    # A failed build may leave objects for a different target. Invalidate the
+    # previous marker before changing any objects, including same-target builds.
+    rm -f "$ios_object_marker" || return $?
+    if [ "$ios_previous_target" != "$ios_object_target" ]; then
+        find main Zend TSRM ext sapi -type f \( -name '*.lo' -o -name '*.o' -o -name '*.dep' \) -delete || return $?
+    fi
+<?php endif; ?>
+<?php if ($this->isAndroid()) : ?>
+    export CFLAGS="$CFLAGS -fPIC"
+    export CXXFLAGS="$CXXFLAGS -fPIC"
+<?php elseif ($this->isLinux()) : ?>
+    export CFLAGS="$CFLAGS  -fPIE"
+<?php endif ; ?>
+    export EXTRA_CFLAGS='<?= $this->extraCflags ?>'
+    # 先删除旧归档，强制 make 重新归档纯 PHP 目标文件；
+    # 否则残留的旧 libs/libphp.a 会被 make 判为 up to date，导致第三方库被重复合并
+    rm -f libs/libphp.a
+    make -j <?= $this->maxJob ?> libs/libphp.a || return $?
+
+<?php if ($this->isAndroid()) : ?>
+    # Android supplies Bionic and libc++ at the final application link. Merge
+    # only PHP and the target third-party archives into the distributable file.
+    WORK_DIR=<?= escapeshellarg($this->getWorkDir()) ?> \
+    GLOBAL_PREFIX=<?= escapeshellarg($this->getGlobalPrefix()) ?> \
+        bash ./sapi/scripts/merge-android-libphp.sh
+<?php elseif (!$this->isIphoneOs()) : ?>
+    # make 产出纯 PHP 目标文件归档（libs/libphp.a），合成脚本会在此基础上
+    # 合并 <?= $this->getGlobalPrefix() ?> 下的第三方静态库与 musl libc，
+    # 最终覆盖产出与 bin/swoole-cli 同等自包含的 libs/libphp.a（不保留中间产物）
+    bash ./sapi/scripts/build-libphp.sh
+<?php else : ?>
+    # Merge target third-party archives into the single distributable libphp.a.
+    # Apple libc/libc++ remain supplied by the final Xcode link.
+    WORK_DIR=<?= escapeshellarg($this->getWorkDir()) ?> \
+    GLOBAL_PREFIX=<?= escapeshellarg($this->getGlobalPrefix()) ?> \
+    IOS_SDK_NAME=<?= $this->isIphoneSimulator() ? 'iphonesimulator' : 'iphoneos' ?> \
+        bash ./sapi/scripts/merge-iphoneos-libphp.sh || return $?
+    ios_object_marker_tmp="${ios_object_marker}.tmp"
+    printf '%s\n' "$ios_object_target" > "$ios_object_marker_tmp" || return $?
+    mv -f "$ios_object_marker_tmp" "$ios_object_marker"
 <?php endif; ?>
 }
 
@@ -397,7 +471,7 @@ lib_dep_pkg() {
 
 make_swoole_cli_with_linux_gcc() {
     if [ ! -f bin/swoole-cli ] ;then
-        ./buildconf --force
+        ./buildconf --force || { echo "[make.sh] buildconf failed" >&2; exit 1; }
         ./sapi/scripts/build-swoole-cli-with-linux-gcc.sh
     fi
 }
@@ -420,6 +494,7 @@ help() {
     echo "./make.sh docker-stop"
     echo "./make.sh config"
     echo "./make.sh build"
+    echo "./make.sh libphp"
     echo "./make.sh test"
     echo "./make.sh archive"
     echo "./make.sh all-library"
@@ -442,7 +517,7 @@ help() {
 }
 
 if [ "$1" = "docker-build" ] ;then
-    MIRROR=""
+    MIRROR="${2:-}"
     CONTAINER_BASE_IMAGE='docker.io/library/alpine:3.18'
     PLATFORM=''
     ARCH=$(uname -m)
@@ -515,6 +590,8 @@ elif [ "$1" = "config" ] ;then
     make_config
 elif [ "$1" = "build" ] ;then
     make_build
+elif [ "$1" = "libphp" ] ;then
+    make_libphp
 elif [ "$1" = "test" ] ;then
     ./bin/swoole-cli vendor/bin/phpunit
 elif [ "$1" = "archive" ] ;then
@@ -589,7 +666,7 @@ elif [ "$1" = "variables" ] ;then
 	echo $LIBS
 elif [ "$1" = "sync" ] ;then
     PHP_CLI=$(which php)
-    test -f ${__PROJECT_DIR__}/runtime/php/php && PHP_CLI="${__PROJECT_DIR__}/runtime/php/php -d curl.cainfo=${__PROJECT_DIR__}/runtime/php/cacert.pem -d openssl.cafile=${__PROJECT_DIR__}/runtime/php/cacert.pem"
+    test -f ${__PROJECT_DIR__}/var/runtime/php/php && PHP_CLI="${__PROJECT_DIR__}/var/runtime/php/php -d curl.cainfo=${__PROJECT_DIR__}/var/runtime/php/cacert.pem -d openssl.cafile=${__PROJECT_DIR__}/var/runtime/php/cacert.pem"
     $PHP_CLI -v
     $PHP_CLI sync-source-code.php --action run
     exit 0

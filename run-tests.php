@@ -304,6 +304,7 @@ function main(): void
         'zend.exception_ignore_args=0',
         'zend.exception_string_param_max_len=15',
         'short_open_tag=0',
+        'date.timezone=UTC',
     ];
 
     $no_file_cache = '-d opcache.file_cache= -d opcache.file_cache_only=0';
@@ -697,7 +698,8 @@ function main(): void
     write_information($user_tests, $phpdbg);
 
     if ($test_cnt) {
-        putenv('NO_INTERACTION=1');
+        $exts_tested = [];
+        $exts_skipped = [];
         usort($test_files, "test_sort");
         $start_timestamp = time();
         $start_time = hrtime(true);
@@ -777,7 +779,7 @@ function main(): void
         show_end($start_timestamp, $start_time, $end_time);
         show_summary();
 
-        save_results($output_file, /* prompt_to_save_results: */ true);
+        save_results($output_file, /* prompt_to_save_results: */ !$just_save_results);
     }
 
     $junit->saveXML();
@@ -920,7 +922,7 @@ function save_results(string $output_file, bool $prompt_to_save_results): void
 {
     global $sum_results, $failed_test_summary, $PHP_FAILED_TESTS, $php;
 
-    if (getenv('NO_INTERACTION')) {
+    if (getenv('NO_INTERACTION') && $prompt_to_save_results) {
         return;
     }
 
@@ -1237,12 +1239,16 @@ function system_with_timeout(
         }
     }
 
-    $stat = proc_get_status($proc);
+    do {
+        $stat = proc_get_status($proc);
+        if ($stat['running']) {
+            usleep(1000);
+        }
+    } while ($stat['running']);
 
     if ($stat['signaled']) {
-        $data .= "\nTermsig=" . $stat['stopsig'] . "\n";
-    }
-    if ($stat["exitcode"] > 128 && $stat["exitcode"] < 160) {
+        $data .= "\nTermsig=" . $stat['termsig'] . "\n";
+    } else if ($stat["exitcode"] > 128 && $stat["exitcode"] < 160) {
         $data .= "\nTermsig=" . ($stat["exitcode"] - 128) . "\n";
     } else if (defined('PHP_WINDOWS_VERSION_MAJOR') && (($stat["exitcode"] >> 28) & 0b1111) === 0b1100) {
         // https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/87fba13e-bf06-450e-83b1-9241dc81e781
@@ -1833,8 +1839,8 @@ function run_test(string $php, $file, array $env): string
         $skipCache = new SkipCache($enableSkipCache, $cfg['keep']['skip']);
     }
 
-    $orig_php = $php;
     $php = escapeshellarg($php);
+    $orig_php = $php;
 
     $retried = false;
 retry:
@@ -2805,6 +2811,11 @@ function is_flaky(TestFile $test): bool
     if ($test->hasSection('FLAKY')) {
         return true;
     }
+    if ($test->hasSection('SKIPIF')) {
+        if (strpos($test->getSection('SKIPIF'), 'SKIP_PERF_SENSITIVE') !== false) {
+            return true;
+        }
+    }
     if (!$test->hasSection('FILE')) {
         return false;
     }
@@ -3379,6 +3390,7 @@ class JUnit
 
         $time = $time ?? $this->getTimer($file_name);
         $this->record($suite, 'execution_time', $time);
+        $formatted_time = number_format($time, 4, '.', '');
 
         $escaped_details = htmlspecialchars($details, ENT_QUOTES, 'UTF-8');
         $escaped_details = preg_replace_callback('/[\0-\x08\x0B\x0C\x0E-\x1F]/', function ($c) {
@@ -3387,7 +3399,7 @@ class JUnit
         $escaped_message = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
 
         $escaped_test_name = htmlspecialchars($file_name . ' (' . $test_name . ')', ENT_QUOTES);
-        $this->rootSuite['files'][$file_name]['xml'] = "<testcase name='$escaped_test_name' time='$time'>\n";
+        $this->rootSuite['files'][$file_name]['xml'] = "<testcase name='$escaped_test_name' time='$formatted_time'>\n";
 
         if (is_array($type)) {
             $output_type = $type[0] . 'ED';
@@ -3432,7 +3444,7 @@ class JUnit
         }
 
         if (isset($this->rootSuite['files'][$file_name]['total'])) {
-            return number_format($this->rootSuite['files'][$file_name]['total'], 4);
+            return $this->rootSuite['files'][$file_name]['total'];
         }
 
         return 0;

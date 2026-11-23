@@ -441,7 +441,6 @@ static zend_object *curl_clone_obj(zend_object *object) {
 
 	clone_object = curl_create_object(curl_ce);
 	clone_ch = curl_from_obj(clone_object);
-	init_curl_handle(clone_ch);
 
 	ch = curl_from_obj(object);
 	cp = curl_easy_duphandle(ch->cp);
@@ -450,6 +449,7 @@ static zend_object *curl_clone_obj(zend_object *object) {
 		return &clone_ch->std;
 	}
 
+	init_curl_handle(clone_ch);
 	clone_ch->cp = cp;
 	_php_setup_easy_copy_handlers(clone_ch, ch);
 
@@ -563,6 +563,34 @@ PHP_MSHUTDOWN_FUNCTION(curl)
 }
 /* }}} */
 
+static void php_curl_call_callback(
+	php_curl *ch, zend_fcall_info_cache *fcc, zval *retval, uint32_t argc, zval *argv)
+{
+	/* The callback may replace or clear its own FCC. Keep its objects alive until
+	 * the call returns, without taking ownership of the FCC's trampoline. */
+	zend_object *object = fcc->object;
+	zend_object *closure = fcc->closure;
+	if (object) {
+		GC_ADDREF(object);
+	}
+	if (closure) {
+		GC_ADDREF(closure);
+	}
+
+	bool was_in_callback = ch->in_callback;
+	ch->in_callback = true;
+	zend_call_known_fcc(fcc, retval, argc, argv, NULL);
+
+	/* Destructors may also call back into curl, so keep the callback guard set. */
+	if (object) {
+		OBJ_RELEASE(object);
+	}
+	if (closure) {
+		OBJ_RELEASE(closure);
+	}
+	ch->in_callback = was_in_callback;
+}
+
 /* {{{ curl_write */
 static size_t curl_write(char *data, size_t size, size_t nmemb, void *ctx)
 {
@@ -583,7 +611,13 @@ static size_t curl_write(char *data, size_t size, size_t nmemb, void *ctx)
 			return fwrite(data, size, nmemb, write_handler->fp);
 		case PHP_CURL_RETURN:
 			if (length > 0) {
-				smart_str_appendl(&write_handler->buf, data, (int) length);
+				if (!smart_str_fappendl_ex(&write_handler->buf, data, length, /* persistent */ false, /* fallible */ true)) {
+#ifdef CURL_WRITEFUNC_ERROR
+					return CURL_WRITEFUNC_ERROR;
+#else
+					return 0;
+#endif
+				}
 			}
 			break;
 		case PHP_CURL_USER: {
@@ -594,9 +628,7 @@ static size_t curl_write(char *data, size_t size, size_t nmemb, void *ctx)
 			ZVAL_OBJ(&argv[0], &ch->std);
 			ZVAL_STRINGL(&argv[1], data, length);
 
-			ch->in_callback = true;
-			zend_call_known_fcc(&write_handler->fcc, &retval, /* param_count */ 2, argv, /* named_params */ NULL);
-			ch->in_callback = false;
+			php_curl_call_callback(ch, &write_handler->fcc, &retval, /* argc */ 2, argv);
 			if (!Z_ISUNDEF(retval)) {
 				_php_curl_verify_handlers(ch, /* reporterror */ true);
 				/* TODO Check callback returns an int or something castable to int */
@@ -621,14 +653,16 @@ static int curl_fnmatch(void *ctx, const char *pattern, const char *string)
 	zval argv[3];
 	zval retval;
 
+	if (!ZEND_FCC_INITIALIZED(ch->handlers.fnmatch)) {
+		return rval;
+	}
+
 	GC_ADDREF(&ch->std);
 	ZVAL_OBJ(&argv[0], &ch->std);
 	ZVAL_STRING(&argv[1], pattern);
 	ZVAL_STRING(&argv[2], string);
 
-	ch->in_callback = true;
-	zend_call_known_fcc(&ch->handlers.fnmatch, &retval, /* param_count */ 3, argv, /* named_params */ NULL);
-	ch->in_callback = false;
+	php_curl_call_callback(ch, &ch->handlers.fnmatch, &retval, /* argc */ 3, argv);
 
 	if (!Z_ISUNDEF(retval)) {
 		_php_curl_verify_handlers(ch, /* reporterror */ true);
@@ -652,6 +686,9 @@ static int curl_progress(void *clientp, double dltotal, double dlnow, double ult
 	fprintf(stderr, "curl_progress() called\n");
 	fprintf(stderr, "clientp = %x, dltotal = %f, dlnow = %f, ultotal = %f, ulnow = %f\n", clientp, dltotal, dlnow, ultotal, ulnow);
 #endif
+	if (!ZEND_FCC_INITIALIZED(ch->handlers.progress)) {
+		return rval;
+	}
 
 	zval args[5];
 	zval retval;
@@ -663,9 +700,7 @@ static int curl_progress(void *clientp, double dltotal, double dlnow, double ult
 	ZVAL_LONG(&args[3], (zend_long)ultotal);
 	ZVAL_LONG(&args[4], (zend_long)ulnow);
 
-	ch->in_callback = true;
-	zend_call_known_fcc(&ch->handlers.progress, &retval, /* param_count */ 5, args, /* named_params */ NULL);
-	ch->in_callback = false;
+	php_curl_call_callback(ch, &ch->handlers.progress, &retval, /* argc */ 5, args);
 
 	if (!Z_ISUNDEF(retval)) {
 		_php_curl_verify_handlers(ch, /* reporterror */ true);
@@ -690,6 +725,9 @@ static int curl_xferinfo(void *clientp, curl_off_t dltotal, curl_off_t dlnow, cu
 	fprintf(stderr, "curl_xferinfo() called\n");
 	fprintf(stderr, "clientp = %x, dltotal = %ld, dlnow = %ld, ultotal = %ld, ulnow = %ld\n", clientp, dltotal, dlnow, ultotal, ulnow);
 #endif
+	if (!ZEND_FCC_INITIALIZED(ch->handlers.xferinfo)) {
+		return rval;
+	}
 
 	zval argv[5];
 	zval retval;
@@ -701,9 +739,7 @@ static int curl_xferinfo(void *clientp, curl_off_t dltotal, curl_off_t dlnow, cu
 	ZVAL_LONG(&argv[3], ultotal);
 	ZVAL_LONG(&argv[4], ulnow);
 
-	ch->in_callback = true;
-	zend_call_known_fcc(&ch->handlers.xferinfo, &retval, /* param_count */ 5, argv, /* named_params */ NULL);
-	ch->in_callback = false;
+	php_curl_call_callback(ch, &ch->handlers.xferinfo, &retval, /* argc */ 5, argv);
 
 	if (!Z_ISUNDEF(retval)) {
 		_php_curl_verify_handlers(ch, /* reporterror */ true);
@@ -746,9 +782,7 @@ static int curl_prereqfunction(void *clientp, char *conn_primary_ip, char *conn_
 	ZVAL_LONG(&args[3], conn_primary_port);
 	ZVAL_LONG(&args[4], conn_local_port);
 
-	ch->in_callback = true;
-	zend_call_known_fcc(&ch->handlers.prereq, &retval, /* param_count */ 5, args, /* named_params */ NULL);
-	ch->in_callback = false;
+	php_curl_call_callback(ch, &ch->handlers.prereq, &retval, /* argc */ 5, args);
 
 	if (!Z_ISUNDEF(retval)) {
 		_php_curl_verify_handlers(ch, /* reporterror */ true);
@@ -760,6 +794,7 @@ static int curl_prereqfunction(void *clientp, char *conn_primary_ip, char *conn_
 				zend_value_error("The CURLOPT_PREREQFUNCTION callback must return either CURL_PREREQFUNC_OK or CURL_PREREQFUNC_ABORT");
 			}
 		} else {
+			zval_ptr_dtor(&retval);
 			zend_type_error("The CURLOPT_PREREQFUNCTION callback must return either CURL_PREREQFUNC_OK or CURL_PREREQFUNC_ABORT");
 		}
 	}
@@ -792,9 +827,7 @@ static int curl_ssh_hostkeyfunction(void *clientp, int keytype, const char *key,
 	ZVAL_STRINGL(&args[2], key, keylen);
 	ZVAL_LONG(&args[3], keylen);
 
-	ch->in_callback = true;
-	zend_call_known_fcc(&ch->handlers.sshhostkey, &retval, /* param_count */ 4, args, /* named_params */ NULL);
-	ch->in_callback = false;
+	php_curl_call_callback(ch, &ch->handlers.sshhostkey, &retval, /* argc */ 4, args);
 
 	if (!Z_ISUNDEF(retval)) {
 		_php_curl_verify_handlers(ch, /* reporterror */ true);
@@ -844,13 +877,11 @@ static size_t curl_read(char *data, size_t size, size_t nmemb, void *ctx)
 			}
 			ZVAL_LONG(&argv[2], (int)size * nmemb);
 
-			ch->in_callback = true;
-			zend_call_known_fcc(&read_handler->fcc, &retval, /* param_count */ 3, argv, /* named_params */ NULL);
-			ch->in_callback = false;
+			php_curl_call_callback(ch, &read_handler->fcc, &retval, /* argc */ 3, argv);
 			if (!Z_ISUNDEF(retval)) {
 				_php_curl_verify_handlers(ch, /* reporterror */ true);
 				if (Z_TYPE(retval) == IS_STRING) {
-					length = MIN((size * nmemb), Z_STRLEN(retval));
+					length = MIN(size * nmemb, Z_STRLEN(retval));
 					memcpy(data, Z_STRVAL(retval), length);
 				} else if (Z_TYPE(retval) == IS_LONG) {
 					length = Z_LVAL_P(&retval);
@@ -881,7 +912,7 @@ static size_t curl_write_header(char *data, size_t size, size_t nmemb, void *ctx
 			/* Handle special case write when we're returning the entire transfer
 			 */
 			if (ch->handlers.write->method == PHP_CURL_RETURN && length > 0) {
-				smart_str_appendl(&ch->handlers.write->buf, data, (int) length);
+				smart_str_appendl(&ch->handlers.write->buf, data, length);
 			} else {
 				PHPWRITE(data, length);
 			}
@@ -896,9 +927,7 @@ static size_t curl_write_header(char *data, size_t size, size_t nmemb, void *ctx
 			ZVAL_OBJ(&argv[0], &ch->std);
 			ZVAL_STRINGL(&argv[1], data, length);
 
-			ch->in_callback = true;
-			zend_call_known_fcc(&write_handler->fcc, &retval, /* param_count */ 2, argv, /* named_params */ NULL);
-			ch->in_callback = false;
+			php_curl_call_callback(ch, &write_handler->fcc, &retval, /* argc */ 2, argv);
 			if (!Z_ISUNDEF(retval)) {
 				// TODO: Check for valid int type for return value
 				_php_curl_verify_handlers(ch, /* reporterror */ true);
@@ -952,9 +981,7 @@ static int curl_debug(CURL *handle, curl_infotype type, char *data, size_t size,
     ZVAL_LONG(&args[1], type);
     ZVAL_STRINGL(&args[2], data, size);
 
-    ch->in_callback = true;
-    zend_call_known_fcc(&ch->handlers.debug, NULL, /* param_count */ 3, args, /* named_params */ NULL);
-    ch->in_callback = false;
+    php_curl_call_callback(ch, &ch->handlers.debug, NULL, /* argc */ 3, args);
 
     zval_ptr_dtor(&args[0]);
     zval_ptr_dtor(&args[2]);

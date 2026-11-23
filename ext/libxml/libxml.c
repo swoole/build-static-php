@@ -40,6 +40,7 @@
 #ifdef LIBXML_SCHEMAS_ENABLED
 #include <libxml/relaxng.h>
 #include <libxml/xmlschemas.h>
+#include <libxml/xmlschemastypes.h>
 #endif
 
 #include "php_libxml.h"
@@ -524,6 +525,7 @@ static int php_libxml_streams_IO_close(void *context)
 	return php_stream_close((php_stream*)context);
 }
 
+/* TODO: This needs to be replaced by context-specific APIs in the future! */
 static xmlParserInputBufferPtr
 php_libxml_input_buffer_create_filename(const char *URI, xmlCharEncoding enc)
 {
@@ -557,13 +559,10 @@ php_libxml_input_buffer_create_filename(const char *URI, xmlCharEncoding enc)
 	}
 
 	/* Allocate the Input buffer front-end. */
-	ret = xmlAllocParserInputBuffer(enc);
-	if (ret != NULL) {
-		ret->context = context;
-		ret->readcallback = php_libxml_streams_IO_read;
-		ret->closecallback = php_libxml_streams_IO_close;
-	} else
+	ret = xmlParserInputBufferCreateIO(php_libxml_streams_IO_read, php_libxml_streams_IO_close, context, enc);
+	if (ret == NULL) {
 		php_libxml_streams_IO_close(context);
+	}
 
 	return(ret);
 }
@@ -610,18 +609,19 @@ php_libxml_output_buffer_create_filename(const char *URI,
 	}
 
 	/* Allocate the Output buffer front-end. */
-	ret = xmlAllocOutputBuffer(encoder);
-	if (ret != NULL) {
-		ret->context = context;
-		ret->writecallback = php_libxml_streams_IO_write;
-		ret->closecallback = php_libxml_streams_IO_close;
+	ret = xmlOutputBufferCreateIO(php_libxml_streams_IO_write, php_libxml_streams_IO_close, context, encoder);
+	if (ret == NULL) {
+		php_libxml_streams_IO_close(context);
+		goto err;
 	}
 
 	return(ret);
 
 err:
-	/* Similarly to __xmlOutputBufferCreateFilename we should also close the encoder on failure. */
+#if LIBXML_VERSION < 21404
+	/* As of libxml 2.14.4, libxml closes the encoder after this callback fails. */
 	xmlCharEncCloseFunc(encoder);
+#endif
 	return NULL;
 }
 
@@ -689,6 +689,10 @@ static void php_libxml_internal_error_handler_ex(php_libxml_error_level error_ty
 {
 	char *buf;
 	bool output = false;
+	
+	if (ZEND_HAS_OOM()) {
+		return;
+	}
 
 	size_t len = vspprintf(&buf, 0, msg, ap);
 	size_t len_iter = len;
@@ -801,6 +805,7 @@ is_string:
 				zend_string_release(callable_name);
 				zval_ptr_dtor(&callable);
 			} else {
+#if LIBXML_VERSION < 21400
 				/* TODO: allow storing the encoding in the stream context? */
 				xmlCharEncoding enc = XML_CHAR_ENCODING_NONE;
 				xmlParserInputBufferPtr pib = xmlAllocParserInputBuffer(enc);
@@ -810,15 +815,24 @@ is_string:
 				} else {
 					/* make stream not being closed when the zval is freed */
 					GC_ADDREF(stream->res);
+
+					ZEND_DIAGNOSTIC_IGNORED_START("-Wdeprecated-declarations")
 					pib->context = stream;
 					pib->readcallback = php_libxml_streams_IO_read;
 					pib->closecallback = php_libxml_streams_IO_close;
+					ZEND_DIAGNOSTIC_IGNORED_END
 
 					ret = xmlNewIOInputStream(context, pib, enc);
 					if (ret == NULL) {
 						xmlFreeParserInputBuffer(pib);
 					}
 				}
+#else
+				/* make stream not being closed when the zval is freed */
+				GC_ADDREF(stream->res);
+				ret = xmlNewInputFromIO(NULL, php_libxml_streams_IO_read, php_libxml_streams_IO_close, stream, 0);
+				/* Note: if ret == NULL, the close operation will be executed, so don't DELREF stream->res upon failure! */
+#endif
 			}
 		} else if (Z_TYPE(retval) != IS_NULL) {
 			/* retval not string nor resource nor null; convert to string */
@@ -929,7 +943,16 @@ PHP_LIBXML_API void php_libxml_initialize(void)
 	if (!_php_libxml_initialized) {
 		/* we should be the only one's to ever init!! */
 		ZEND_IGNORE_LEAKS_BEGIN();
+
 		xmlInitParser();
+#ifdef ZTS
+# ifdef LIBXML_SCHEMAS_ENABLED
+		xmlSchemaInitTypes();
+# endif
+# ifdef LIBXML_RELAXNG_ENABLED
+		xmlRelaxNGInitTypes();
+# endif
+#endif
 		ZEND_IGNORE_LEAKS_END();
 
 		_php_libxml_default_entity_loader = xmlGetExternalEntityLoader();
@@ -1181,10 +1204,10 @@ PHP_FUNCTION(libxml_get_errors)
 	ZEND_PARSE_PARAMETERS_NONE();
 
 	if (LIBXML(error_list)) {
-		array_init(return_value);
+		array_init_size(return_value, zend_llist_count(LIBXML(error_list)));
 		error = zend_llist_get_first(LIBXML(error_list));
 
-		while (error != NULL) {
+		while (error != NULL && !ZEND_HAS_OOM()) {
 			zval z_error;
 			php_libxml_create_error_object(&z_error, error);
 			add_next_index_zval(return_value, &z_error);
@@ -1482,6 +1505,7 @@ PHP_LIBXML_API void php_libxml_node_decrement_resource(php_libxml_node_object *o
 				obj_node->_private = NULL;
 			}
 		}
+		object->node = NULL;
 	}
 	if (object != NULL && object->document != NULL) {
 		/* Safe to call as if the resource were freed then doc pointer is NULL */

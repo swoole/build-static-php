@@ -1,0 +1,173 @@
+name: build-swoole-cli-macos-x86_64
+
+on: [ push, pull_request ]
+
+jobs:
+  macos-x86_64:
+    # 已临时停用：Apple 已于 2026-09-01 宣布停止支持 x86，macos-x86_64 构建暂停。
+    # 恢复方法：把下面的 if: false 改回 -> if: ${{ !contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[macos-x86_64]') }}
+    if: false
+    runs-on: macos-15-intel
+    # macos-latest (macos-14)  变更了 CPU 架构，由 x86_64 变更为 arm64
+    # macos-14 CPU 架构 arm64
+    # macos-13 CPU 架构 x86_64
+    # macos-12 CPU 架构 x86_64
+    # https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#choosing-github-hosted-runners
+
+    steps:
+      - uses: actions/checkout@v5
+      - name: Show Environment Info
+        run: |
+          set -x
+          uname -s
+          uname -m
+          uname -r
+          env
+          echo $HOME
+          sw_vers
+          xcodebuild -version
+          brew config
+          xcrun --show-sdk-path
+          ls -lh $(xcrun --show-sdk-path)
+
+          ifconfig
+          export IPV6=$(ifconfig en0  | grep "inet6 " | grep -v "inet6 fe80:" | awk '{print $2}' | cut -d'/' -f1 | sed -n '2p')
+          export IPV4=$(ifconfig en0 | grep "inet " | grep -v 127.0.0 | awk '{print $2}' | cut -d'/' -f1 | sed -n '1p')
+          echo $IPV4
+          echo $IPV6
+          echo "X_IPV6=${IPV6}" >> $GITHUB_ENV
+          echo "X_IPV4=${IPV4}" >> $GITHUB_ENV
+
+      - name: Prepare Build Environment
+        run: |
+          bash sapi/quickstart/macos/macos-init.sh
+
+          export PATH=/usr/local/opt/libtool/bin:$PATH
+
+          ls -lha /usr/local/opt/libtool/bin/
+
+          libtoolize --version
+          libtool --help-all
+          # brew bison --debug
+
+          CURRENT_USER=$(whoami)
+          echo ${CURRENT_USER}
+          sudo mkdir -p /usr/local/swoole-cli
+          CURRENT_USER=$(whoami) && sudo chown -R ${CURRENT_USER}:staff /usr/local/swoole-cli
+
+          # git submodule update --init
+
+      - name: Cache PHP Runtime
+        uses: actions/cache@v5
+        id: php-runtime-cache
+        with:
+          path: ${{ github.workspace }}/runtime
+          key: ${{ runner.os }}-x86_64-php-runtime
+
+      - name: Cache PHP Vendor
+        uses: actions/cache@v5
+        id: php-vendor-cache
+        with:
+          path: ${{ github.workspace }}/vendor
+          key: ${{ runner.os }}-x86_64-php-vendor
+
+      - name: Cache Dependency Source Code Tarball
+        uses: actions/cache@v5
+        id: pool-cache
+        with:
+          path: ${{ github.workspace }}/pool/
+          key: source-code-tarball-pool
+
+      - name: Cache all-library
+        uses: actions/cache@v5
+        id: all-library-cache
+        with:
+          path: /usr/local/swoole-cli
+          key: all-library-${{ runner.os }}-x86_64-${{ hashFiles('sapi/PHP-VERSION.conf', 'sapi/SWOOLE-VERSION.conf') }}
+          restore-keys: |
+            all-library-${{ runner.os }}-x86_64-
+
+      - name: Prepare Runtime and Libraries and Extensions
+        run: |
+          set -ex
+          mkdir -p pool/lib
+          mkdir -p pool/ext
+          mkdir -p bin/
+          mkdir -p runtime/
+          if [ -f runtime/php ]; then rm -f runtime/php; fi
+          if [ ! -f runtime/php/box ] ; then
+              bash  setup-php-runtime.sh
+          fi
+          bash sapi/download-box/download-box-get-archive-from-server.sh
+          ls -A pool/lib/
+          ls -A /usr/local/swoole-cli/
+
+      - name: prepare
+        run: |
+          export PATH=${{ github.workspace }}/runtime/php/:$PATH
+          alias php="php -d curl.cainfo=${{ github.workspace }}/runtime/php/cacert.pem -d openssl.cafile=${{ github.workspace }}/runtime/php/cacert.pem"
+
+          composer install  --no-interaction --no-autoloader --no-scripts --profile --no-dev
+          composer dump-autoload --optimize --profile --no-dev
+
+          php prepare.php --without-docker=1 --with-libavif +apcu +ds +xlswriter +ssh2 +pgsql +uuid
+
+      - name: Build
+        run: |
+          export PATH=${{ github.workspace }}/runtime/php/:$PATH
+
+          bash make-install-deps.sh
+
+          bash make.sh all-library
+
+          bash make.sh config
+          bash make.sh build
+          bash make.sh archive
+
+      - name: Show Build Result
+        run: |
+          ./bin/swoole-cli -v
+          ./bin/swoole-cli -m
+          ./bin/swoole-cli --ri curl
+          ./bin/swoole-cli --ri gd
+          ./bin/swoole-cli --ri imagick
+          ./bin/swoole-cli --ri swoole
+          ./bin/swoole-cli --ri pgsql
+          file ./bin/swoole-cli
+          otool -L ./bin/swoole-cli
+          APP_VERSION=$(./bin/swoole-cli  -v | awk '{print $2}')
+          echo "APP_VERSION=${APP_VERSION}" >> $GITHUB_ENV
+          ./bin/swoole-cli -r "echo PHP_VERSION;"
+
+          ./bin/swoole-cli ./vendor/bin/phpunit ./sapi/src/UnitTest/MainTest.php  --list-tests
+          ./bin/swoole-cli ./vendor/bin/phpunit ./sapi/src/UnitTest/MainTest.php
+
+      - name: Archive production artifacts debug
+        uses: actions/upload-artifact@v5
+        with:
+          name: swoole-cli-v${{ env.APP_VERSION }}-macos-x64-debug
+          retention-days: 90
+          path: ./bin/swoole-cli
+
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: swoole-cli-v${{ env.APP_VERSION }}-macos-x64
+          retention-days: 90
+          path: ./bin/dist/swoole-cli
+
+      - name: gh release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: swoole-cli-v${{ env.APP_VERSION }}-macos-x64.tar.xz
+
+      - name: upload artifacts to cloud object storage
+        if: ${{ (github.repository == 'swoole/swoole-cli') && (startsWith(github.ref, 'refs/tags/'))  }}
+        env:
+          OSS_SECRET_ID: ${{ secrets.QCLOUD_OSS_SECRET_ID }}
+          OSS_SECRET_KEY: ${{ secrets.QCLOUD_OSS_SECRET_KEY }}
+          OSS_BUCKET: ${{ vars.QCLOUD_OSS_BUCKET }}
+          OSS_REGION: ${{ vars.QCLOUD_OSS_REGION }}
+        run: |
+          bash sapi/scripts/tencent-cloud-object-storage.sh --upload-file ${{ github.workspace }}/swoole-cli-v${{ env.APP_VERSION }}-macos-x64.tar.xz

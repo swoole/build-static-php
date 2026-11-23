@@ -135,17 +135,13 @@ static int zend_file_cache_flock(int fd, int type)
 			(ptr) = (void*)((char*)buf + (size_t)(ptr)); \
 		} \
 	} while (0)
+
 #define SERIALIZE_STR(ptr) do { \
 		if (ptr) { \
 			if (IS_ACCEL_INTERNED(ptr)) { \
 				(ptr) = zend_file_cache_serialize_interned((zend_string*)(ptr), info); \
 			} else { \
 				ZEND_ASSERT(IS_UNSERIALIZED(ptr)); \
-				/* script->corrupted shows if the script in SHM or not */ \
-				if (EXPECTED(script->corrupted)) { \
-					GC_ADD_FLAGS(ptr, IS_STR_INTERNED); \
-					GC_DEL_FLAGS(ptr, IS_STR_PERMANENT); \
-				} \
 				(ptr) = (void*)((char*)(ptr) - (char*)script->mem); \
 			} \
 		} \
@@ -164,6 +160,7 @@ static int zend_file_cache_flock(int fd, int type)
 					GC_ADD_FLAGS(ptr, IS_STR_INTERNED); \
 					GC_DEL_FLAGS(ptr, IS_STR_PERMANENT); \
 				} \
+				GC_DEL_FLAGS(ptr, IS_STR_CLASS_NAME_MAP_PTR); \
 			} \
 		} \
 	} while (0)
@@ -535,13 +532,32 @@ static void zend_file_cache_serialize_op_array(zend_op_array            *op_arra
 			}
 			if (opline->op2_type == IS_CONST) {
 				SERIALIZE_PTR(opline->op2.zv);
+
+				/* See GH-17733. Reset Z_EXTRA_P(op2) of ZEND_INIT_FCALL, which
+				 * is an offset into the global function table, to avoid calling
+				 * incorrect functions when environment changes. This, and the
+				 * equivalent code below, can be removed once proper system ID
+				 * validation is implemented. */
+				if (opline->opcode == ZEND_INIT_FCALL) {
+					zval *op2 = opline->op2.zv;
+					UNSERIALIZE_PTR(op2);
+					Z_EXTRA_P(op2) = 0;
+					ZEND_VM_SET_OPCODE_HANDLER(opline);
+				}
 			}
 #else
 			if (opline->op1_type == IS_CONST) {
 				opline->op1.constant = RT_CONSTANT(opline, opline->op1) - literals;
 			}
 			if (opline->op2_type == IS_CONST) {
-				opline->op2.constant = RT_CONSTANT(opline, opline->op2) - literals;
+				zval *op2 = RT_CONSTANT(opline, opline->op2);
+				opline->op2.constant = op2 - literals;
+
+				/* See GH-17733 and comment above. */
+				if (opline->opcode == ZEND_INIT_FCALL) {
+					Z_EXTRA_P(op2) = 0;
+					ZEND_VM_SET_OPCODE_HANDLER(opline);
+				}
 			}
 #endif
 #if ZEND_USE_ABS_JMP_ADDR
@@ -1821,6 +1837,7 @@ zend_persistent_script *zend_file_cache_script_load(zend_file_handle *file_handl
 	bool cache_it = true;
 	unsigned int actual_checksum;
 	bool ok;
+	size_t orig_map_ptr_last = 0;
 
 	if (!full_path) {
 		return NULL;
@@ -1950,6 +1967,8 @@ zend_persistent_script *zend_file_cache_script_load(zend_file_handle *file_handl
 		}
 		memcpy(buf, mem, info.mem_size);
 		zend_map_ptr_extend(ZCSG(map_ptr_last));
+		orig_map_ptr_last = CG(map_ptr_last);
+		zend_accel_pending_ce_cache_begin();
 	} else {
 use_process_mem:
 		buf = mem;
@@ -1968,6 +1987,10 @@ use_process_mem:
 	} zend_end_try();
 	if (!ok) {
 		if (cache_it) {
+			/* The slots allocated by the failed unserialization are referenced
+			 * only by the abandoned buffer, so they can be reclaimed. */
+			zend_accel_pending_ce_cache_discard();
+			CG(map_ptr_last) = orig_map_ptr_last;
 			zend_shared_alloc_unlock();
 			goto use_process_mem;
 		} else {
@@ -1981,6 +2004,7 @@ use_process_mem:
 
 	if (cache_it) {
 		ZCSG(map_ptr_last) = CG(map_ptr_last);
+		zend_accel_pending_ce_cache_commit();
 		script->dynamic_members.last_used = ZCG(request_time);
 
 		zend_accel_hash_update(&ZCSG(hash), script->script.filename, 0, script);

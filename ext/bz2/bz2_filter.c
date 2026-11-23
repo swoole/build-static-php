@@ -90,6 +90,10 @@ static php_stream_filter_status_t php_bz2_decompress_filter(
 
 		bucket = php_stream_bucket_make_writeable(buckets_in->head);
 		while (bin < bucket->buflen) {
+			/* Output is unbounded relative to the input. */
+			if (ZEND_HAS_OOM()) {
+				break;
+			}
 			if (data->status == PHP_BZ2_UNINITIALIZED) {
 				status = BZ2_bzDecompressInit(streamp, 0, data->small_footprint);
 
@@ -155,7 +159,7 @@ static php_stream_filter_status_t php_bz2_decompress_filter(
 	if ((data->status == PHP_BZ2_RUNNING) && (flags & PSFS_FLAG_FLUSH_CLOSE)) {
 		/* Spit it out! */
 		status = BZ_OK;
-		while (status == BZ_OK) {
+		while (status == BZ_OK && !ZEND_HAS_OOM()) {
 			status = BZ2_bzDecompress(&(data->strm));
 			if (data->strm.avail_out < data->outbuf_len) {
 				size_t bucketlen = data->outbuf_len - data->strm.avail_out;
@@ -337,12 +341,14 @@ static php_stream_filter *php_bz2_filter_create(const char *filtername, zval *fi
 			zval *tmpzval = NULL;
 
 			if (Z_TYPE_P(filterparams) == IS_ARRAY || Z_TYPE_P(filterparams) == IS_OBJECT) {
-				if ((tmpzval = zend_hash_str_find(HASH_OF(filterparams), "concatenated", sizeof("concatenated")-1))) {
+				HashTable *ht = HASH_OF(filterparams);
+
+				if ((tmpzval = zend_hash_str_find_ind(ht, "concatenated", sizeof("concatenated")-1))) {
 					data->expect_concatenated = zend_is_true(tmpzval);
 					tmpzval = NULL;
 				}
 
-				tmpzval = zend_hash_str_find(HASH_OF(filterparams), "small", sizeof("small")-1);
+				tmpzval = zend_hash_str_find_ind(ht, "small", sizeof("small")-1);
 			} else {
 				tmpzval = filterparams;
 			}
@@ -362,7 +368,9 @@ static php_stream_filter *php_bz2_filter_create(const char *filtername, zval *fi
 			zval *tmpzval;
 
 			if (Z_TYPE_P(filterparams) == IS_ARRAY || Z_TYPE_P(filterparams) == IS_OBJECT) {
-				if ((tmpzval = zend_hash_str_find(HASH_OF(filterparams), "blocks", sizeof("blocks")-1))) {
+				HashTable *ht = HASH_OF(filterparams);
+
+				if ((tmpzval = zend_hash_str_find_ind(ht, "blocks", sizeof("blocks")-1))) {
 					/* How much memory to allocate (1 - 9) x 100kb */
 					zend_long blocks = zval_get_long(tmpzval);
 					if (blocks < 1 || blocks > 9) {
@@ -372,7 +380,7 @@ static php_stream_filter *php_bz2_filter_create(const char *filtername, zval *fi
 					}
 				}
 
-				if ((tmpzval = zend_hash_str_find(HASH_OF(filterparams), "work", sizeof("work")-1))) {
+				if ((tmpzval = zend_hash_str_find_ind(ht, "work", sizeof("work")-1))) {
 					/* Work Factor (0 - 250) */
 					zend_long work = zval_get_long(tmpzval);
 					if (work < 0 || work > 250) {

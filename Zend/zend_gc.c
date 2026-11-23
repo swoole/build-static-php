@@ -76,6 +76,7 @@
 #include "zend_types.h"
 #include "zend_weakrefs.h"
 #include "zend_string.h"
+#include "zend_exceptions.h"
 
 #ifndef GC_BENCH
 # define GC_BENCH 0
@@ -1516,6 +1517,9 @@ tail_call:
 				GC_ADDREF(ht);
 				if (GC_REF_CHECK_COLOR(ht, GC_WHITE)) {
 					GC_REF_SET_BLACK(ht);
+					if (!GC_INFO(ht)) {
+						gc_add_garbage((zend_refcounted *)ht);
+					}
 					for (; n != 0; n--) {
 						if (Z_REFCOUNTED_P(zv)) {
 							ref = Z_COUNTED_P(zv);
@@ -1872,6 +1876,17 @@ static zend_fiber *gc_create_destructor_fiber(void)
 	return fiber;
 }
 
+static void remember_prev_exception(zend_object **prev_exception)
+{
+	if (EG(exception)) {
+		if (*prev_exception) {
+			zend_exception_set_previous(EG(exception), *prev_exception);
+		}
+		*prev_exception = EG(exception);
+		EG(exception) = NULL;
+	}
+}
+
 static zend_never_inline void gc_call_destructors_in_fiber(uint32_t end)
 {
 	ZEND_ASSERT(!GC_G(dtor_fiber_running));
@@ -1881,11 +1896,17 @@ static zend_never_inline void gc_call_destructors_in_fiber(uint32_t end)
 	GC_G(dtor_idx) = GC_FIRST_ROOT;
 	GC_G(dtor_end) = GC_G(first_unused);
 
+	zend_object *exception = NULL;
+	remember_prev_exception(&exception);
+	zend_object *old_exception = exception;
+
 	if (UNEXPECTED(!fiber)) {
 		fiber = gc_create_destructor_fiber();
 	} else {
 		zend_fiber_resume(fiber, NULL, NULL);
 	}
+
+	remember_prev_exception(&exception);
 
 	for (;;) {
 		/* At this point, fiber has executed until suspension */
@@ -1900,13 +1921,23 @@ static zend_never_inline void gc_call_destructors_in_fiber(uint32_t end)
 			/* We do not own the fiber anymore. It may be collected if the
 			 * application does not reference it. */
 			zend_object_release(&fiber->std);
+			remember_prev_exception(&exception);
 			fiber = gc_create_destructor_fiber();
+			remember_prev_exception(&exception);
 			continue;
 		} else {
 			/* Fiber suspended itself after calling all destructors */
 			GC_TRACE("destructor fiber suspended itself");
 			break;
 		}
+	}
+
+	EG(exception) = exception;
+
+	/* Destructors ran in another fiber, out of reach of zend_call_function()'s rethrow */
+	if (exception && !old_exception && EG(current_execute_data) && EG(current_execute_data)->func
+			&& ZEND_USER_CODE(EG(current_execute_data)->func->common.type)) {
+		zend_rethrow_exception(EG(current_execute_data));
 	}
 }
 
