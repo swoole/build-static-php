@@ -113,15 +113,15 @@ jobs:
         uses: actions/cache@v5
         id: php-runtime-cache-x86_64
         with:
-          path: ${{ github.workspace }}/var/runtime
-          key: ${{ runner.os }}-x86_64-php-runtime-${{ hashFiles('setup-php-runtime.sh') }}
+          path: ${{ github.workspace }}/runtime
+          key: ${{ runner.os }}-${{ runner.arch }}-php-runtime-${{ hashFiles('setup-php-runtime.sh') }}
 
       - name: Cache PHP Vendor
         uses: actions/cache@v5
         id: php-vendor-cache-x86_64
         with:
           path: ${{ github.workspace }}/vendor
-          key: ${{ runner.os }}-x86_64-php-vendor
+          key: ${{ runner.os }}-${{ runner.arch }}-php-vendor
 
       - name: Cache Dependency Source Code Tarball
         uses: actions/cache@v5
@@ -161,15 +161,15 @@ jobs:
           mkdir -p pool/ext
           mkdir -p bin/
           mkdir -p var/runtime/
-          if [ ! -x var/runtime/php/php ] || [ ! -x var/runtime/php/composer ]; then
+          if [ ! -x runtime/php/php ] || [ ! -x runtime/php/composer ]; then
               bash  setup-php-runtime.sh
           fi
           CACHE_NUM=$(ls -A pool/lib/ | wc -l)
           LIB_NUM=$(ls -A sapi/src/builder/library/ | wc -l)
           echo `expr $LIB_NUM - $CACHE_NUM`
 
-          test -x var/runtime/php/php
-          test -x var/runtime/php/composer
+          test -x runtime/php/php
+          test -x runtime/php/composer
 
           bash sapi/download-box/download-box-get-archive-from-server.sh
 
@@ -194,8 +194,8 @@ jobs:
           run: |
             set -eux
             uname -m
-            export PATH=/work/var/runtime/php:$PATH
-            alias php="php -d curl.cainfo=/work/var/runtime/php/cacert.pem -d openssl.cafile=/work/var/runtime/php/cacert.pem"
+            export PATH=/work/runtime/php:$PATH
+            alias php="php -d curl.cainfo=/work/runtime/php/cacert.pem -d openssl.cafile=/work/runtime/php/cacert.pem"
 
             sh  sapi/quickstart/linux/alpine-init.sh
             git config --global --add safe.directory /work

@@ -55,7 +55,7 @@ jobs:
         uses: actions/cache@v5
         id: php-runtime-cache
         with:
-          path: ${{ github.workspace }}/var/runtime
+          path: ${{ github.workspace }}/runtime/php
           key: ${{ runner.os }}-x86_64-php-runtime
 
       - name: Cache PHP Vendor
@@ -101,8 +101,8 @@ jobs:
           fi
 
           WORK_DIR=${{ github.workspace }}
-          export PATH=${WORK_DIR}/var/runtime/php/:$PATH
-          alias php="php -d curl.cainfo=${WORK_DIR}/var/runtime/php/cacert.pem -d openssl.cafile=${WORK_DIR}/var/runtime/php/cacert.pem"
+          export PATH=${WORK_DIR}/runtime/php/:$PATH
+          alias php="php -d curl.cainfo=${WORK_DIR}/runtime/php/cacert.pem -d openssl.cafile=${WORK_DIR}/runtime/php/cacert.pem"
 
           composer install  --no-interaction --no-autoloader --no-scripts --profile
           composer dump-autoload --optimize --profile

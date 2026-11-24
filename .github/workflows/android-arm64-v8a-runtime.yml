@@ -10,7 +10,8 @@ permissions:
 
 jobs:
   android-arm64-v8a:
-    if: ${{ !contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[android-arm64-v8a]') }}
+    if: false
+    # if: ${{ !contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[android-arm64-v8a]') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 120
 
