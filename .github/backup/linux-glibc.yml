@@ -4,7 +4,9 @@ on: [ push, pull_request ]
 
 jobs:
   linux-glibc:
-    if: ${{ 0 && !contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[linux-glibc]') }}
+    # 已临时停用：该构建版本作用不大。
+    # 恢复方法：把下面的 if: false 改回 -> if: ${{ !contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[linux-glibc]') }}
+    if: false
     strategy:
       fail-fast: false
       matrix:
@@ -56,14 +58,29 @@ jobs:
           path: ${{ github.workspace }}/pool/
           key: source-code-tarball-pool
 
+      - name: Cache PHP Runtime
+        # 与 linux-x86_64 / linux-aarch64 使用相同 key，按矩阵架构区分并跨 workflow 复用
+        uses: actions/cache@v5
+        id: php-runtime-cache-glibc
+        with:
+          path: ${{ github.workspace }}/runtime
+          key: ${{ runner.os }}-${{ runner.arch == 'X64' && 'x86_64' || 'aarch64' }}-php-runtime
+
+      - name: Cache PHP Vendor
+        uses: actions/cache@v5
+        id: php-vendor-cache-glibc
+        with:
+          path: ${{ github.workspace }}/vendor
+          key: ${{ runner.os }}-${{ runner.arch == 'X64' && 'x86_64' || 'aarch64' }}-php-vendor
+
       - name: Prepare Runtime and Libraries and Extensions
         run: |
-          set -x
+          set -ex
           mkdir -p pool/lib
           mkdir -p pool/ext
           mkdir -p bin/
           mkdir -p runtime/
-          test -f runtime/php && rm -f runtime/php
+          if [ -f runtime/php ]; then rm -f runtime/php; fi
           if [ ! -f runtime/php/box ] ; then
               bash  setup-php-runtime.sh
           fi

@@ -9,7 +9,9 @@ env:
 
 jobs:
   macos-x86_64:
-    if: 1
+    # 已临时停用：Apple 已于 2026-09-01 宣布停止支持 x86，macos-x86_64 构建暂停。
+    # 恢复方法：把下面的 if: false 改回 -> if: ${{ !contains(github.event.head_commit.message, '--filter=') || contains(github.event.head_commit.message, '[macos-x86_64]') }}
+    if: false
     runs-on: macos-15-intel
     # macos-latest (macos-14)  变更了 CPU 架构，由 x86_64 变更为 arm64
     # macos-14 CPU 架构 arm64
@@ -106,16 +108,18 @@ jobs:
         id: all-library-cache
         with:
           path: /usr/local/swoole-cli
-          key: ${{ github.head_ref || github.ref_name }}-${{ runner.os }}-x86_64-all-library
+          key: all-library-${{ runner.os }}-x86_64-${{ hashFiles('sapi/PHP-VERSION.conf', 'sapi/SWOOLE-VERSION.conf') }}
+          restore-keys: |
+            all-library-${{ runner.os }}-x86_64-
 
       - name: Prepare Runtime and Libraries and Extensions
         run: |
-          set -x
+          set -ex
           mkdir -p pool/lib
           mkdir -p pool/ext
           mkdir -p bin/
           mkdir -p runtime/
-          test -f runtime/php && rm -f runtime/php
+          if [ -f runtime/php ]; then rm -f runtime/php; fi
           if [ ! -f runtime/php/box ] ; then
               bash  setup-php-runtime.sh
           fi

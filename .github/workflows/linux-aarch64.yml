@@ -19,6 +19,10 @@ jobs:
           - "8.5.11"
     steps:
       - uses: actions/checkout@v5
+
+      - name: Configure build parallelism
+        run: bash .github/scripts/configure-build-jobs.sh
+
       - name: Show Environment Info
         run: |
           echo $PATH
@@ -60,8 +64,8 @@ jobs:
         uses: actions/cache@v5
         id: php-runtime-cache-aarch64
         with:
-          path: ${{ github.workspace }}/runtime
-          key: ${{ runner.os }}-aarch64-php-runtime
+          path: ${{ github.workspace }}/var/runtime
+          key: ${{ runner.os }}-aarch64-php-runtime-${{ hashFiles('setup-php-runtime.sh') }}
 
       - name: Cache PHP Vendor
         uses: actions/cache@v5
@@ -82,7 +86,9 @@ jobs:
         id: all-library-cache-aarch64
         with:
           path: /usr/local/swoole-cli
-          key: ${{ github.head_ref || github.ref_name }}-${{ runner.os }}-aarch64-all-library
+          key: all-library-${{ runner.os }}-aarch64-${{ hashFiles('sapi/PHP-VERSION.conf', 'sapi/SWOOLE-VERSION.conf') }}
+          restore-keys: |
+            all-library-${{ runner.os }}-aarch64-
 
       - name: Cache swoole-cli-builder-image
         uses: actions/cache@v5
@@ -101,15 +107,16 @@ jobs:
 
       - name: Prepare Runtime and Libraries and Extensions
         run: |
-          set -x
+          set -ex
           mkdir -p pool/lib
           mkdir -p pool/ext
           mkdir -p bin/
-          mkdir -p runtime/
-          test -f runtime/php && rm -f runtime/php
-          if [ ! -f runtime/php/box ] ; then
+          mkdir -p var/runtime/
+          if [ ! -x var/runtime/php/php ] || [ ! -x var/runtime/php/composer ]; then
               bash  setup-php-runtime.sh
           fi
+          test -x var/runtime/php/php
+          test -x var/runtime/php/composer
           bash sapi/download-box/download-box-get-archive-from-server.sh
           ls -A pool/lib/
           ls -A /usr/local/swoole-cli/
@@ -118,20 +125,35 @@ jobs:
         uses: addnab/docker-run-action@v3
         with:
           image: swoole-cli-builder:latest
-          options: -v ${{ github.workspace }}:/work -w /work -e BUILD_PHP_VERSION=${{ env.BUILD_PHP_VERSION }} -v /usr/local/swoole-cli:/usr/local/swoole-cli
+          options: >-
+            -v ${{ github.workspace }}:/work -w /work
+            -v /usr/local/swoole-cli:/usr/local/swoole-cli
+            -e BUILD_JOBS=${{ env.BUILD_JOBS }}
+            -e CMAKE_BUILD_PARALLEL_LEVEL=${{ env.CMAKE_BUILD_PARALLEL_LEVEL }}
+            -e PHP_COMPILER_JOBS=${{ env.PHP_COMPILER_JOBS }}
+            -e CARGO_BUILD_JOBS=${{ env.CARGO_BUILD_JOBS }}
+            -e MAKEFLAGS=${{ env.MAKEFLAGS }}
+            -e MFLAGS=${{ env.MFLAGS }}
+            -e TEST_PHP_JOBS=${{ env.TEST_PHP_JOBS }}
+            -e BUILD_PHP_VERSION=${{ env.BUILD_PHP_VERSION }}
+
           run: |
             set -eux
             uname -m
-            export PATH=/work/runtime/php/:$PATH  # 容器已经内置 php 和 composer
-            alias php="php -d curl.cainfo=/work/runtime/php/cacert.pem -d openssl.cafile=/work/runtime/php/cacert.pem"
+            export PATH=/work/var/runtime/php:$PATH
+            alias php="php -d curl.cainfo=/work/var/runtime/php/cacert.pem -d openssl.cafile=/work/var/runtime/php/cacert.pem"
 
             sh  sapi/quickstart/linux/alpine-init.sh
             git config --global --add safe.directory /work
 
-            composer install  --no-interaction --no-autoloader --no-scripts --profile --no-dev
-            composer dump-autoload --optimize --profile --no-dev
+            command -v php
+            command -v composer
+            php -v
+            composer --version
+            composer install  --no-interaction --no-autoloader --no-scripts --profile
+            composer dump-autoload --optimize --profile
 
-            php prepare.php --with-static-pie --with-libavif +inotify +apcu +ds +pgsql +uuid --with-php-version=${{ env.BUILD_PHP_VERSION }}
+            php prepare.php --with-static-pie --with-libavif +inotify +apcu +ds +pgsql +uuid +xlswriter +ssh2 --with-php-version=${{ env.BUILD_PHP_VERSION }} --with-parallel-jobs="${BUILD_JOBS}"
 
             bash make-install-deps.sh
 
@@ -140,6 +162,13 @@ jobs:
             bash make.sh config
             bash make.sh build
             bash make.sh archive
+
+            # 只生产 PHP Runtime Layer；最终 PHPX SDK 由 swoole/phpx 组装发布。
+            # bash make.sh libphp
+            # RUNTIME_LAYER_VERSION=${{ github.ref_name }} \
+              bash sapi/scripts/package-php-runtime-layer.sh linux-arm64
+            # ls -lh libs/libphp.a
+            # ls -lh runtime-layer/*.tar.xz*
 
       - name: Show Build Result
         run: |
@@ -185,12 +214,22 @@ jobs:
           retention-days: 90
           path: ./bin/php-${{ env.APP_VERSION }}/bin/dist/php
 
+      - name: PHP runtime layer artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: php-runtime-layer-linux-arm64
+          retention-days: 14
+          path: runtime-layer/*.tar.xz*
+          if-no-files-found: error
+
       - name: gh release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
             ${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-linux-arm64.tar.xz
+            # runtime-layer/*.tar.xz
+            # runtime-layer/*.tar.xz.sha256
 
       - name: upload artifacts to cloud object storage
         if: ${{ 0 && (github.repository == 'swoole/swoole-cli') && (startsWith(github.ref, 'refs/tags/'))  }}

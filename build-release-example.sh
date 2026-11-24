@@ -185,8 +185,8 @@ if [ ! -f "${__PROJECT__}/runtime/php/php" ]; then
   fi
 fi
 
-export PATH="${__PROJECT__}/runtime/php/:$PATH"
-alias php="php -d curl.cainfo=${__PROJECT__}/runtime/php/cacert.pem -d openssl.cafile=${__PROJECT__}/runtime/php/cacert.pem"
+export PATH="${__PROJECT__}/var/runtime/php/:$PATH"
+alias php="php -d curl.cainfo=${__PROJECT__}/var/runtime/php/cacert.pem -d openssl.cafile=${__PROJECT__}/var/runtime/php/cacert.pem"
 
 php -v
 

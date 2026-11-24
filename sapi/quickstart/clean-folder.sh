@@ -56,9 +56,12 @@ if [[ $ACTION = "delete" ]]; then
   test -d include && rm -rf include
   test -d pear && rm -rf pear
   test -d modules && rm -rf modules
+  test -d win32 && rm -rf win32
+  test -d sapi/embed && rm -rf sapi/embed
   test -f configure && rm -rf configure
   test -f configure.ac && rm -rf configure.ac
   test -f buildconf && rm -rf buildconf
+  test -f buildconf.bat && rm -rf buildconf.bat
   test -f cppflags.log && rm -rf cppflags.log
   test -f ldflags.log && rm -rf ldflags.log
   test -f Makefile && rm -rf Makefile
@@ -83,5 +86,6 @@ if [[ $ACTION = "delete" ]]; then
   test -f make-export-variables.sh && rm -f make-export-variables.sh
   test -f make-install-deps.sh && rm -f make-install-deps.sh
   test -f libs.log && rm -f libs.log
+  test -f run-tests.php && rm -f run-tests.php
   echo $?
 fi
