@@ -8,7 +8,7 @@ cd /d ..\..\..\
 
 set "__PROJECT__=%cd%"
 echo %cd%
-cd "%__PROJECT__%"
+cd "%__PROJECT__%\var\native-build\php-src"
 
 set "PATH=%__PROJECT__%\runtime\jom;%PATH%"
 
@@ -52,4 +52,3 @@ dumpbin /DEPENDENTS ".\x64\Release_TS\php.exe"
 
 cd %__PROJECT__%
 endlocal
-

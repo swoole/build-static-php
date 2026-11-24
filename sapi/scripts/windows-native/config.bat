@@ -12,7 +12,6 @@ vswhere -products * -latest -prerelease -find **\VC\Auxiliary\Build\vcvarsall.ba
 rem call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
 env
 
-
 where bison
 bison --version
 re2c --version
@@ -21,12 +20,15 @@ echo "%SDK_UM%"
 
 set "__PROJECT__=%cd%"
 echo %cd%
-cd /d %__PROJECT__%
+mkdir  %__PROJECT__%\var\native-build
+
+cd /d %__PROJECT__%\var\native-build\php-src\
+dir
 set "PHP_SRC=%cd%"
 echo %cd%
 
 if exist "configure.js" (
-::    nmake clean
+    nmake clean
     del /Q "configure.js"
 )
 
@@ -62,6 +64,9 @@ set "X_LIBS=%X_LIBS%;%__PROJECT__%\build\libzip\lib"
 set "X_INCLUDES=%X_INCLUDES%;%__PROJECT__%\build\libiconv\include"
 set "X_LIBS=%X_LIBS%;%__PROJECT__%\build\libiconv\lib"
 
+set "X_INCLUDES=%X_INCLUDES%;%__PROJECT__%\build\libxml2\include"
+set "X_LIBS=%X_LIBS%;%__PROJECT__%\build\libxml2\lib"
+
 set "X_INCLUDES=%X_INCLUDES%;%__PROJECT__%\build\libpsl\include"
 set "X_LIBS=%X_LIBS%;%__PROJECT__%\build\libpsl\lib"
 
@@ -79,6 +84,9 @@ set "X_LIBS=%X_LIBS%;%__PROJECT__%\build\libnghttp3\lib"
 
 set "X_INCLUDES=%X_INCLUDES%;%__PROJECT__%\build\ngtcp2\include"
 set "X_LIBS=%X_LIBS%;%__PROJECT__%\build\ngtcp2\lib"
+
+set "X_INCLUDES=%X_INCLUDES%;%__PROJECT__%\build\curl\include"
+set "X_LIBS=%X_LIBS%;%__PROJECT__%\build\curl\lib"
 
 set "X_INCLUDES=%X_INCLUDES%;%__PROJECT__%\build\oniguruma\include"
 set "X_LIBS=%X_LIBS%;%__PROJECT__%\build\oniguruma\lib"
@@ -138,11 +146,11 @@ set "X_LIBS=%X_LIBS%;%__PROJECT__%\build\libyuv\lib"
 set "X_INCLUDES=%X_INCLUDES%;%__PROJECT__%\build\libavif\include"
 set "X_LIBS=%X_LIBS%;%__PROJECT__%\build\libavif\lib"
 
-:: set "X_INCLUDES=%X_INCLUDES%;%__PROJECT__%\build\include"
+set "X_INCLUDES=%X_INCLUDES%;%__PROJECT__%\build\include"
 
 set "X_INCLUDES=%X_INCLUDES%;%SDK_UM%"
 
-:: set "X_LIBS=%X_LIBS%;%__PROJECT__%\build\lib"
+set "X_LIBS=%X_LIBS%;%__PROJECT__%\build\lib"
 
 :: set "INCLUDE=%INCLUDE%;%PHP_SRC%\ext"
 set "INCLUDE=%X_INCLUDES%;%INCLUDE%"

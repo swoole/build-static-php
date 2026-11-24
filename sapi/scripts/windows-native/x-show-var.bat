@@ -28,4 +28,3 @@ rem dir  %__PROJECT__%\var\native-build\php-sdk-binary-tools\msys2\usr\bin\
 
 cd %__PROJECT__%
 endlocal
-
