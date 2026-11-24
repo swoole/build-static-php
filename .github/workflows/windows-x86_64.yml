@@ -88,6 +88,11 @@ jobs:
         run: |
           cmd /c sapi\scripts\windows-native\build-libs.bat
 
+      - name: prepare php source code
+        run: |
+          $env:PHP_VERSION = "${{ env.BUILD_PHP_VERSION }}"
+          cmd /c sapi\scripts\windows-native\download-php.bat
+
       - name: prepare extensions
         run: |
           cmd /c var\native-build\php-sdk-binary-tools\phpsdk-starter.bat -c vs17 -a x64  -t sapi\scripts\windows-native\build-extensions.bat
