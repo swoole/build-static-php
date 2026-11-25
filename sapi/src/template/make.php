@@ -333,19 +333,10 @@ make_config() {
     # 请把这个做成 patch  https://github.com/swoole/swoole-cli/pull/55/files
     fi
 <?php endif; ?>
-    cd <?= $this->getWorkDir() . PHP_EOL ?>
-    test -f ./configure &&  rm ./configure
-    ./buildconf --force || { echo "[make.sh] buildconf failed" >&2; exit 1; }
-<?php if ($this->isLinux() && !$this->isAndroid()) : ?>
-    mv main/php_config.h.in /tmp/cnt
-    echo -ne '#ifndef __PHP_CONFIG_H\n#define __PHP_CONFIG_H\n' > main/php_config.h.in
-    cat /tmp/cnt >> main/php_config.h.in
-    echo -ne '\n#endif\n' >> main/php_config.h.in
-<?php endif; ?>
 
     cd <?= $this->getPhpSrcDir() ?>/
     test -f ./configure &&  rm ./configure
-    ./buildconf --force
+    ./buildconf --force || { echo "[make.sh] buildconf failed" >&2; exit 1; }
 
 <?php if ($this->isMacos()) : ?>
     <?php if ($this->hasLibrary('pgsql')) : ?>
@@ -367,19 +358,7 @@ make_config() {
 
     # more info https://stackoverflow.com/questions/19456518/error-when-using-sed-with-find-command-on-os-x-invalid-command-code
 
-<?php if ($this->isAndroid()) : ?>
-    # Bionic exposes only part of the resolver API expected by PHP. In
-    # particular dn_skipname and the glibc-compatible re-entrant state API are
-    # unavailable. Disable all resolver variants together so PHP does not
-    # register dns_get_record()/dns_get_mx() without their implementations.
-    sed -i \
-        -e 's/^#define HAVE_RES_NSEARCH 1$/\/\* #undef HAVE_RES_NSEARCH \*\//' \
-        -e 's/^#define HAVE_RES_SEARCH 1$/\/\* #undef HAVE_RES_SEARCH \*\//' \
-        -e 's/^#define HAVE_DN_SKIPNAME 1$/\/\* #undef HAVE_DN_SKIPNAME \*\//' \
-        main/php_config.h
-<?php endif ; ?>
-
-<?php if ($this->isLinux() && !$this->isAndroid()) : ?>
+<?php if ($this->isLinux()) : ?>
     sed -i.backup 's/-export-dynamic/-all-static/g' Makefile
     test -f Makefile.backup && rm -f Makefile.backup
 <?php endif; ?>

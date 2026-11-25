@@ -20,6 +20,7 @@ return function (Preprocessor $p) {
             ->withManual('https://gmplib.org/')
             ->withLicense('https://www.gnu.org/licenses/old-licenses/gpl-2.0.html', Library::LICENSE_GPL)
             ->withUrl('https://ftp.gnu.org/gnu/gmp/gmp-6.3.0.tar.xz')
+            ->withUrl('https://ftpmirror.gnu.org/gnu/gmp/gmp-6.3.0.tar.xz')
             ->withFileHash('md5', '956dc04e864001a9c22429f761f2c283')
             ->withPrefix($gmp_prefix)
             ->withConfigure(

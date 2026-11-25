@@ -301,7 +301,8 @@ class Preprocessor
             ->withVariable('CXXFLAGS', '$CXXFLAGS ' . $targetFlags)
             ->withVariable('LDFLAGS', '$LDFLAGS ' . $linkFlags)
             ->withExportVariable('PKG_CONFIG_LIBDIR', $pkgConfigDir);
-        $this->setExtraOptions(<<<'OPTIONS'
+        $this->setExtraOptions(
+            <<<'OPTIONS'
     --host=aarch64-linux-android \
     --disable-cli \
     --without-pcre-jit \
@@ -349,7 +350,8 @@ OPTIONS
             ->withVariable('CXXFLAGS', '$CXXFLAGS ' . $targetFlags)
             ->withVariable('LDFLAGS', '$LDFLAGS ' . $targetFlags)
             ->withExportVariable('PKG_CONFIG_LIBDIR', $pkgConfigDir);
-        $this->setExtraOptions(<<<'OPTIONS'
+        $this->setExtraOptions(
+            <<<'OPTIONS'
     --host=aarch64-apple-darwin \
     --disable-cli \
     --disable-fiber-asm \
@@ -992,16 +994,16 @@ EOF;
                         $httpProxyConfig = '';
                     }
                     switch ($downloadType) { ////pecl , pie , curl , script
-                        case "pecl" :
-                        case "curl" :
+                        case "pecl":
+                        case "curl":
                             echo "[Extension] {$ext->file} not found, downloading: " . $ext->url . PHP_EOL;
                             $this->downloadFile($ext, $httpProxyConfig);
                             break;
-                        case "pie" :
+                        case "pie":
                             echo "[Extension] {$ext->file} not found, download with pie.phar " . $ext->homePage . PHP_EOL;
                             $this->downloadFileWithPie($ext, $httpProxyConfig);
                             break;
-                        case "download_script" :
+                        case "download_script":
                             $this->downloadFileWithScript($ext, $httpProxyConfig);
                             break;
                         default:
