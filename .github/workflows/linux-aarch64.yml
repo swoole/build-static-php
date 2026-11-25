@@ -166,8 +166,7 @@ jobs:
 
             # 只生产 PHP Runtime Layer；最终 PHPX SDK 由 swoole/phpx 组装发布。
             # bash make.sh libphp
-            # RUNTIME_LAYER_VERSION=${{ github.ref_name }} \
-              bash sapi/scripts/package-php-runtime-layer.sh linux-arm64
+            # RUNTIME_LAYER_VERSION=${{ github.ref_name }} bash sapi/scripts/package-php-runtime-layer.sh linux-arm64
             # ls -lh libs/libphp.a
             # ls -lh runtime-layer/*.tar.xz*
 
