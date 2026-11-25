@@ -17,7 +17,7 @@ mkdir -p pool/ext
 mkdir -p ${__PROJECT__}/var/download-box/
 
 cd ${__PROJECT__}/var/download-box/
-SWOOLE_CLI_RELEASE_VERSION="v6.2.0.0"
+SWOOLE_CLI_RELEASE_VERSION="v6.2.5.0"
 ALL_DEPS_HASH=""
 
 DOMAIN="https://github.com/swoole/swoole-cli/releases/download/${SWOOLE_CLI_RELEASE_VERSION}/"
