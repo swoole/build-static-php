@@ -166,7 +166,7 @@ EOF
         $shell .= <<<'EOF'
         # swoole extension hook
         cd ${PHP_SRC_DIR}
-        if [ ${IS_MACOS} -eq 1 ];then
+        if [ "${IS_MACOS:-0}" -eq 1 ];then
             sed -i '' 's/pthread_barrier_init/pthread_barrier_init_x_fake/' ext/swoole/config.m4
         fi
 
