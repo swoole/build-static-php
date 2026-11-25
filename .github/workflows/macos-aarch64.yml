@@ -131,7 +131,7 @@ jobs:
           composer install  --no-interaction --no-autoloader --no-scripts --profile
           composer dump-autoload --optimize --profile
 
-          php prepare.php --without-docker=1 --with-libavif +apcu +ds +pgsql +uuid +xlswriter +ssh2  --with-parallel-jobs="${BUILD_JOBS}" --with-php-version=${{ env.BUILD_PHP_VERSION }}
+          php prepare.php --without-docker=1 --with-libavif +ds +pgsql +uuid +xlswriter +ssh2  --with-parallel-jobs="${BUILD_JOBS}" --with-php-version=${{ env.BUILD_PHP_VERSION }}
 
       - name: Build
         run: |
