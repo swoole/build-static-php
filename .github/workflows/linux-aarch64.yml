@@ -154,7 +154,7 @@ jobs:
             composer install  --no-interaction --no-autoloader --no-scripts --profile
             composer dump-autoload --optimize --profile
 
-            php prepare.php --with-static-pie --with-libavif +inotify--with-php-version=${{ env.BUILD_PHP_VERSION }} --with-parallel-jobs="${BUILD_JOBS}"
+            php prepare.php --with-static-pie --with-libavif +inotify --with-php-version=${{ env.BUILD_PHP_VERSION }} --with-parallel-jobs="${BUILD_JOBS}"
 
             bash make-install-deps.sh
 
@@ -215,6 +215,7 @@ jobs:
           path: ./bin/php-${{ env.APP_VERSION }}/bin/dist/php
 
       - name: PHP runtime layer artifact
+        if: false
         uses: actions/upload-artifact@v5
         with:
           name: php-runtime-layer-linux-arm64

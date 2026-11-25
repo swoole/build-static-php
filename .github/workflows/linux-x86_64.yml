@@ -279,6 +279,7 @@ jobs:
           path: ./bin/php-${{ env.APP_VERSION }}/bin/dist/php
 
       - name: PHP runtime layer artifact
+        if: false
         uses: actions/upload-artifact@v5
         with:
           name: php-runtime-layer-linux-x64

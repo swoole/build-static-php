@@ -115,9 +115,9 @@ jobs:
         run: |
           .\var\native-build\php-src\x64\Release\php.exe -v
           .\var\native-build\php-src\x64\Release_TS\php.exe -m
-          .\var\native-builde\php-src\x64\Release_TS\php.exe --ri curl
-          .\var\native-builde\php-src\x64\Release_TS\php.exe --ri openssl
-          .\var\native-builde\php-src\x64\Release_TS\php.exe --ri swoole
+          .\var\native-build\php-src\x64\Release_TS\php.exe --ri curl
+          .\var\native-build\php-src\x64\Release_TS\php.exe --ri openssl
+          .\var\native-build\php-src\x64\Release_TS\php.exe --ri swoole
 
       - name: production artifacts
         uses: actions/upload-artifact@v4
