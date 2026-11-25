@@ -106,12 +106,14 @@ jobs:
         run: |
           cmd /c var\native-build\php-sdk-binary-tools\phpsdk-starter.bat -c vs17 -a x64  -t sapi\scripts\windows-native\build.bat
 
-      - name: archie
+      - name: archive
         run: |
           cmd /c sapi\scripts\windows-native\build-archive.bat
 
       - name: Show Build Result
+        shell: cmd
         run: |
+          set "PATH=%__PROJECT__%\var\native-build\php-sdk-binary-tools\bin\;%__PROJECT__%\var\native-build\php-sdk-binary-tools\msys2\bin;%PATH%;"
           .\var\native-build\php-src\x64\Release\php.exe -v
           .\var\native-build\php-src\x64\Release_TS\php.exe -v
           .\var\native-builde\php-src\x64\Release_TS\php.exe -m

@@ -39,11 +39,12 @@ return [
     'mongodb',
     'gettext',
     'uuid',
-    'apcu',
-    'ds',
+#    'apcu',
+#    'ds',
 #    'ssh2',
     'pgsql',
 #    'xlswriter',
     'gettext',
-#    'phpy'
+#    'phpy',
+    'uuid'
 ];
