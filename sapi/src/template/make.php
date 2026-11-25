@@ -308,6 +308,7 @@ make_config() {
     test "${PHP_VERSION}" = "$(cat '<?= $this->phpSrcDir ?>/X-PHP-VERSION')" || bash make.sh php ;
 
     cd <?= $this->phpSrcDir ?>/
+    ls -lha .
 <?php if (in_array($this->buildType, ['dev'])) : ?>
     # dev 环境 过滤扩展，便于调试单个扩展编译
     filter_extension
