@@ -17,11 +17,23 @@ git config core.ignorecase false # 设置 Git 在 Windows 上也区分大小写
 [7zip](https://7-zip.org/)
 [visualstudio](https://visualstudio.microsoft.com/zh-hans/downloads/)
 [windows-sdk](https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/)
+[远程桌面客户端](https://learn.microsoft.com/zh-cn/windows-server/remote/remote-desktop-services/clients/remote-desktop-clients)
 
 ## windows 软连接例子
 
 ```bash
 
 mklink composer composer.phar
+
+```
+
+```shell
+netsh wlan show drivers
+netsh wlan show profiles
+#　查看密码等信息
+netsh wlan show profiles name="XXXXXX" key=clear
+
+
+ipconfig /all
 
 ```

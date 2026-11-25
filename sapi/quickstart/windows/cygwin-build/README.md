@@ -2,6 +2,16 @@
 
 ## [windows cygwin 环境 构建步骤](../../../../docs/Cygwin.md)
 
+## cygwin 工作目录
+
+```shell
+
+  DISK_DRIVE=$( df -h / | sed -n '2p' | awk '{ print $1 }' )$(pwd)
+  echo $DISK_DRIVE
+  WIND_DIR=$(echo $DISK_DRIVE | sed 's/\//\\/g')
+
+```
+
 ## 自动下载cygwin 和 cygwin安装依赖库
 
 ```shell
@@ -55,4 +65,3 @@ cd /cygdrive/c/users/${USER}/swoole-cli
 mklink composer composer.phar
 
 ```
-
