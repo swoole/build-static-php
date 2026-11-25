@@ -29,9 +29,9 @@ $p->cleanFile(__DIR__ . '/configure.backup');
 
 
 # PHP 默认版本
-$php_version = '8.4.26';
-$php_version_id = '804026';
-$php_version_tag = 'php-8.4.26';
+$php_version = '8.4.28';
+$php_version_id = '804028';
+$php_version_tag = 'php-8.4.28';
 
 if ($p->getInputOption('with-php-version')) {
     $subject = $p->getInputOption('with-php-version');
@@ -129,7 +129,7 @@ if (!is_dir($varDir)) {
 // require __DIR__ . '/sapi/scripts/download-php-src-archive.php';
 
 // Sync code from php-src
-$p->setPhpSrcDir($p->getWorkDir() . '/var/php-' . BUILD_PHP_VERSION);
+// $p->setPhpSrcDir($p->getWorkDir() . '/var/php-' . BUILD_PHP_VERSION);
 
 
 // Download swoole-src
