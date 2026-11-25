@@ -36,6 +36,7 @@ if exist "configure.js" (
 
 
 set "X_CFLAGS="
+set "X_CXXFLAGS="
 set "X_INCLUDES="
 set "X_LIBS="
 
@@ -212,9 +213,10 @@ set "X_CFLAGS=%X_CFLAGS% -DU_STATIC_IMPLEMENTATION"
 set "X_CFLAGS=%X_CFLAGS% -DSODIUM_STATIC=1"
 set "X_CFLAGS=%X_CFLAGS% -DCARES_STATICLIB"
 set "X_CFLAGS=%X_CFLAGS% -DLIBPQ_STATIC"
-
 set "CFLAGS=%X_CFLAGS%"
 
+set "X_CXXFLAGS=%X_CXXFLAGS% /std:c++20"
+set "CXXFLAGS=%X_CXXFLAGS%"
 
 :: /showIncludes
 :: /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed
@@ -269,6 +271,7 @@ configure.bat ^
 --disable-phpdbg ^
 --disable-cgi  ^
 --enable-cli   ^
+--enable-embed   ^
 --enable-zts ^
 --enable-filter ^
 --enable-session ^

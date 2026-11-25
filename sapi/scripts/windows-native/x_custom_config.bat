@@ -113,6 +113,9 @@ echo 	@"$(LINK)" /nologo  $(STATIC_EXT_OBJS_RESP) $(PHP_GLOBAL_OBJS_RESP) $(CLI_
 rem echo 	-@$(_VC_MANIFEST_EMBED_EXE) >> %X_MAKEFILE%
 echo 	@if exist php.exe.manifest $(MT) -nologo -manifest php.exe.manifest -outputresource:php.exe    >> %X_MAKEFILE%
 
+echo libphp.lib^: $(DEPS_EMBED) $(EMBED_GLOBAL_OBJS) $(BUILD_DIR)\$(PHPLIB) $(BUILD_DIR)\php8embed.lib.res $(BUILD_DIR)\php8embed.lib.manifest
+echo 	@$(MAKE_LIB) /nologo /out:libphp.lib $(ARFLAGS) $(EMBED_GLOBAL_OBJS_RESP) $(BUILD_DIR)\$(PHPLIB) $(ARFLAGS_EMBED) $(LIBS_EMBED) $(BUILD_DIR)\php8embed.lib.res
+
 
 rem /ENTRY:main
 rem /ENTRY:main php8ts.lib
