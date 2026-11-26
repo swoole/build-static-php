@@ -1,6 +1,7 @@
 @echo off
 
-setlocal
+setlocal enabledelayedexpansion
+
 rem show current file location
 echo %~dp0
 cd /d %~dp0
@@ -14,7 +15,14 @@ cd %__PROJECT__%
 
 dumpbin /DEPENDENTS ".\var\native-build\php-src\x64\Release_TS\php.exe"
 
-7z a -tzip php-cli-v8.2.32-windows-x64.zip .\var\native-build\php-src\x64\Release_TS\php.exe
+set "RELEASE_PHP_VERSION="
+for /f "tokens=1,2" %%A in ('.\var\native-build\php-src\x64\Release_TS\php.exe -v 2^>nul ^| findstr /b "PHP "') do (
+    if not defined RELEASE_PHP_VERSION set "RELEASE_PHP_VERSION=%%V"
+)
+
+echo PHP_VERSION=!RELEASE_PHP_VERSION!
+
+7z a -tzip php-cli-v%RELEASE_PHP_VERSION%-windows-x64.zip .\var\native-build\php-src\x64\Release_TS\php.exe
 
 exit /b 0
 

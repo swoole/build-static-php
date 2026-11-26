@@ -208,7 +208,7 @@ jobs:
           path: ./bin/php-${{ env.APP_VERSION }}/bin/php
 
       - name: production artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-linux-arm64
           retention-days: 90
@@ -216,7 +216,7 @@ jobs:
 
       - name: PHP runtime layer artifact
         if: false
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: php-runtime-layer-linux-arm64
           retention-days: 14

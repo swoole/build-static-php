@@ -182,7 +182,7 @@ jobs:
           path: ./bin/php-${{ env.APP_VERSION }}/bin/php
 
       - name: Archive production artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.APP_NAME }}-v${{ env.APP_VERSION }}-macos-arm64
           retention-days: 90
