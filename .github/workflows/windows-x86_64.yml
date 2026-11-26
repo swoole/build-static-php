@@ -124,7 +124,7 @@ jobs:
         with:
           name: php-cli-v${{ env.BUILD_PHP_VERSION }}-windows-x64
           retention-days: 90
-          path: ".\var\native-build\php-src\x64\Release_TS\php.exe"
+          path: "./var/native-build/php-src/x64/Release_TS/php.exe"
 
       - name: lib production artifacts
         uses: actions/upload-artifact@v4
