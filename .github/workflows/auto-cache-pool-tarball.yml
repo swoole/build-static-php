@@ -115,7 +115,7 @@ jobs:
           php prepare.php  --show-tarball-hash=1 --with-php-version=8.3.37
           php prepare.php  --show-tarball-hash=1 --with-php-version=8.4.28
           php prepare.php  --show-tarball-hash=1 --with-php-version=8.5.13
-          php prepare.php  --show-tarball-hash=1 --with-php-version=8.6.9
+          php prepare.php  --show-tarball-hash=1 --with-php-version=8.6.0
 
           echo 'cygwin: https://www.cygwin.com/COPYING' >> bin/LICENSE
           cd ${{ github.workspace }}/pool/

@@ -15,8 +15,9 @@ cd %__PROJECT__%
 
 dumpbin /DEPENDENTS ".\var\native-build\php-src\x64\Release_TS\php.exe"
 
+
 set "RELEASE_PHP_VERSION="
-for /f "tokens=1,2" %%A in ('.\var\native-build\php-src\x64\Release_TS\php.exe -v 2^>nul ^| findstr /b "PHP "') do (
+for /f "tokens=2" %%V in ('.\var\native-build\php-src\x64\Release_TS\php.exe -v 2^>nul ^| findstr /b "PHP "') do (
     if not defined RELEASE_PHP_VERSION set "RELEASE_PHP_VERSION=%%V"
 )
 
