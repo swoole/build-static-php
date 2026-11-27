@@ -25,6 +25,8 @@ echo PHP_VERSION=!RELEASE_PHP_VERSION!
 
 7z a -tzip php-cli-v%RELEASE_PHP_VERSION%-windows-x64.zip .\var\native-build\php-src\x64\Release_TS\php.exe
 
+dir
+
 exit /b 0
 
 cd /d %__PROJECT__%
